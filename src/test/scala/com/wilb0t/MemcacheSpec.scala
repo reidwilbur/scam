@@ -1,8 +1,10 @@
 package com.wilb0t
 
+import java.io.{ByteArrayInputStream, InputStream}
 import java.net.InetAddress
+import java.nio.charset.Charset
 
-import com.wilb0t.MemcacheClient.{Stored, Response, Key}
+import com.wilb0t.MemcacheClient.{StorageResponseParser, Stored, Response, Key}
 import org.scalatest.{MustMatchers, Matchers, FunSpec}
 
 import scala.concurrent.duration.Duration
@@ -25,7 +27,7 @@ class MemcacheSpec extends FunSpec with MustMatchers {
 
     it("must throw IllegalArgumentException when the value contains a tab") {
       intercept[IllegalArgumentException] {
-        Key("\\t")
+        Key("\t")
       }
     }
   }
@@ -34,7 +36,7 @@ class MemcacheSpec extends FunSpec with MustMatchers {
     it("must serialize args to List[String]") {
       val s = MemcacheClient.Set(Key("somekey"), 0xffffffff, 3600, Array[Byte](0x0, 0x1, 0x2, 0x3))
 
-      s.cmdArgs must equal (List("set", "somekey", "65535", "3600", "4"))
+      s.args must equal (List("set", "somekey", "65535", "3600", "4"))
     }
 
     it("must serialize to bytes") {
@@ -45,15 +47,32 @@ class MemcacheSpec extends FunSpec with MustMatchers {
 
   }
 
-  describe("Delimiter") {
-    it("must have correct value") {
-      MemcacheClient.delimiter must equal (Array[Byte](13,10))
+  describe("StorageResponseParser") {
+    it("must return Stored for a STORED server message") {
+      val iss = new ByteArrayInputStream("STORED\r\n".getBytes(Charset.forName("UTF-8")))
+      StorageResponseParser()(iss) must equal (List(MemcacheClient.Stored()))
     }
-  }
 
-  describe("Response") {
-    it("must return Stored from a stored server message") {
-      Response("STORED") must equal (MemcacheClient.Stored())
+    it("must return NotStored for a NOT_STORED server message") {
+      val iss = new ByteArrayInputStream("NOT_STORED\r\n".getBytes(Charset.forName("UTF-8")))
+      StorageResponseParser()(iss) must equal (List(MemcacheClient.NotStored()))
+    }
+
+    it("must return Exists for an EXISTS server message") {
+      val iss = new ByteArrayInputStream("EXISTS\r\n".getBytes(Charset.forName("UTF-8")))
+      StorageResponseParser()(iss) must equal (List(MemcacheClient.Exists()))
+    }
+
+    it("must return NotFound for a NOT_FOUND server message") {
+      val iss = new ByteArrayInputStream("NOT_FOUND\r\n".getBytes(Charset.forName("UTF-8")))
+      StorageResponseParser()(iss) must equal (List(MemcacheClient.NotFound()))
+    }
+
+    it("must throw IllegalArgumentException for any unhandled server message") {
+      val iss = new ByteArrayInputStream("asdf\r\n".getBytes(Charset.forName("UTF-8")))
+      intercept[IllegalArgumentException] {
+        StorageResponseParser()(iss)
+      }
     }
   }
 
@@ -68,7 +87,8 @@ class MemcacheSpec extends FunSpec with MustMatchers {
       } yield Await.result(c.query(MemcacheClient.Set(Key("somekey"), 0x0, 3600, Array[Byte](0x0, 0x1, 0x2, 0x3))), Duration.Inf)
 
       setResponse match {
-        case Success(r) => assert(r == Stored())
+        case Success(r :: _) => r must equal (Stored())
+        case Success(r) => fail("Unexpected response" + r)
         case Failure(t) => fail(t)
       }
     }

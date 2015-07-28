@@ -1,33 +1,39 @@
 package com.wilb0t
 
-import java.io.{BufferedReader, InputStreamReader, DataInputStream}
+import java.io.{InputStream, BufferedReader, InputStreamReader, DataInputStream}
 import java.net.{Socket, InetAddress}
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
+import scala.util.matching.Regex
 import scala.util.{Success, Try}
 
 trait MemcacheClient {
-  def query(command:MemcacheClient.Command)(implicit ec:ExecutionContext) : Future[MemcacheClient.Response]
+  def query(command:MemcacheClient.Command)(implicit ec:ExecutionContext) : Future[List[MemcacheClient.Response]]
 }
 
 object MemcacheClient {
-  val delimiter = Array[Byte](13,10)
-  val separator = ' '
+  val delimiter = "\r\n".getBytes(Charset.forName("UTF-8"))
 
   case class Key(value: String) {
-    if (value.length > 250 || value.contains(' ') || value.contains("\\t")) {
+    if (value.length > 250 || value.contains(' ') || value.contains("\t")) {
       throw new IllegalArgumentException("Keys must contain no whitespace and be 250 chars or less")
     }
   }
 
+  trait ResponseParser {
+    def apply(input: InputStream) : List[Response]
+  }
+
   sealed trait Command {
-    def cmdArgs: List[String]
+    def args: List[String]
     def data: Option[Array[Byte]]
+    def responseParser: ResponseParser
+
     def toBytes: Array[Byte] = {
-      val lines = List[Option[Array[Byte]]](Some(cmdArgs.mkString(" ").getBytes(Charset.forName("UTF-8"))), data)
+      val lines = List[Option[Array[Byte]]](Some(args.mkString(" ").getBytes(Charset.forName("UTF-8"))), data)
       val length = lines.flatMap{_.map{_.length}}.sum
       val bytebuf = lines.foldLeft(ByteBuffer.allocate(length + (2 * delimiter.length))) {
         case (buf, Some(bytes)) => buf.put(bytes).put(delimiter)
@@ -43,7 +49,7 @@ object MemcacheClient {
     def exptime: Int
     def value: Array[Byte]
 
-    override def cmdArgs: List[String] = {
+    override def args: List[String] = {
       List(
         this.getClass.getSimpleName.toLowerCase,
         key.value,
@@ -53,7 +59,9 @@ object MemcacheClient {
       )
     }
 
-    override def data: Option[Array[Byte]] = Some(value)
+    override val data: Option[Array[Byte]] = Some(value)
+
+    override val responseParser = StorageResponseParser()
   }
 
   case class Set    (override val key:Key, override val flags:Int, override val exptime:Int, override val value: Array[Byte]) extends StorageCommand
@@ -67,15 +75,14 @@ object MemcacheClient {
   trait RetrievalCommand extends Command {
     def keys: List[Key]
 
-    override def data = None
+    override val data = None
 
-    override def cmdArgs: List[String] = {
-        this.getClass.getSimpleName.toLowerCase :: keys.map{_.value}
-    }
+    override def args: List[String] =
+      this.getClass.getSimpleName.toLowerCase :: keys.map{_.value}
   }
 
-  case class Get(override val keys: List[Key]) extends RetrievalCommand
-  case class Gets(override val keys: List[Key]) extends RetrievalCommand
+//  case class Get(override val keys: List[Key]) extends RetrievalCommand
+//  case class Gets(override val keys: List[Key]) extends RetrievalCommand
 
 //  case class Delete(key:Key) extends Command
 //
@@ -93,19 +100,32 @@ object MemcacheClient {
   case class Deleted() extends Response
   case class Touched() extends Response
 
+  case class Value(key:Key, flags:Int, casUnique:Option[Long], value:Array[Byte]) extends Response
+
   case class Error() extends Response
   case class ClientError(error: String) extends Response
   case class ServerError(error: String) extends Response
 
-  object Response {
-    def apply(line:String) : Response =
-      line match {
-        case "STORED" => Stored()
-        case "NOT_STORED" => NotStored()
-        case "EXISTS" => Exists()
-        case "NOT_FOUND" => NotFound()
-        case default => throw new IllegalArgumentException("Unable to parse line from server '" + line + "'")
+  case class StorageResponseParser() extends ResponseParser {
+    override def apply(input:InputStream) : List[Response] = {
+      Source.fromInputStream(input, "UTF-8").getLines().next() match {
+        case "STORED" => List(Stored())
+        case "NOT_STORED" => List(NotStored())
+        case "EXISTS" => List(Exists())
+        case "NOT_FOUND" => List(NotFound())
+        case line => throw new IllegalArgumentException("Unable to parse response from server '" + line + "'")
       }
+    }
+  }
+
+  case class RetrievalResponseParser() extends ResponseParser {
+    val valCasMatch = """^VALUE (\w+) (\d+) (\d+) (\d+)$""".r
+    val valMatch = """^VALUE (\w+) (\d+) (\d+)$""".r
+    val endMatch = """^END$""".r
+
+    override def apply(input:InputStream): List[Response] = {
+      List()
+    }
   }
 
   def apply(address: InetAddress, port: Int) : Try[MemcacheClient] = {
@@ -116,11 +136,10 @@ object MemcacheClient {
         val in = new BufferedReader(new InputStreamReader(socket.getInputStream))
         val out = socket.getOutputStream
 
-        override def query(command: Command)(implicit ec: ExecutionContext): Future[Response] = Future {
+        override def query(command: Command)(implicit ec: ExecutionContext): Future[List[Response]] = Future {
           out.write(command.toBytes)
           out.flush()
-          //Source.fromInputStream(socket.getInputStream).getLines().
-          Response(in.readLine())
+          command.responseParser(socket.getInputStream)
         }
       }
     )
