@@ -3,7 +3,6 @@ package com.wilb0t.memcache
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
-
 sealed trait Command extends Response.Parser {
   val delimiter = "\r\n".getBytes(Charset.forName("UTF-8"))
 
@@ -24,7 +23,7 @@ sealed trait Command extends Response.Parser {
 object Command {
 
   case class Key(value: String) {
-    if (value.length > 250 || value.contains(' ') || value.contains("\t")) {
+    if (value.length > 250 || value.contains(' ') || value.contains('\t')) {
       throw new IllegalArgumentException("Keys must contain no whitespace and be 250 chars or less")
     }
   }
@@ -35,7 +34,7 @@ object Command {
     def exptime: Int
     val value: List[Byte]
 
-    override def args: List[String] = {
+    override def args: List[String] =
       List(
         this.getClass.getSimpleName.toLowerCase,
         key.value,
@@ -43,7 +42,6 @@ object Command {
         exptime.toString,
         value.length.toString
       )
-    }
 
     override val data: Option[List[Byte]] = Some(value)
   }
@@ -53,7 +51,18 @@ object Command {
   case class Replace(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
   case class Append(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
   case class Prepend(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
-  case class Cas(override val key: Key, override val flags: Int, override val exptime: Int, casUnique: Long, override val value: List[Byte]) extends StorageCommand
+
+  case class Cas(override val key: Key, override val flags: Int, override val exptime: Int, casUnique: Long, override val value: List[Byte]) extends StorageCommand {
+    override def args: List[String] =
+      List(
+        this.getClass.getSimpleName.toLowerCase,
+        key.value,
+        (flags & 0xffff).toString(),
+        exptime.toString,
+        value.length.toString,
+        casUnique.toString
+      )
+  }
 
   trait RetrievalCommand extends Command with Response.RetrievalResponseParser {
     def keys: List[Key]
@@ -61,9 +70,7 @@ object Command {
     override val data = None
 
     override def args: List[String] =
-      this.getClass.getSimpleName.toLowerCase :: keys.map {
-        _.value
-      }
+      this.getClass.getSimpleName.toLowerCase :: keys.map {_.value}
   }
 
   case class Get(override val keys: List[Key]) extends RetrievalCommand
