@@ -4,15 +4,16 @@ import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
 sealed trait Command extends Response.Parser {
-  val delimiter = "\r\n".getBytes(Charset.forName("UTF-8"))
+  val charset = Charset.forName("UTF-8")
+  val delimiter = "\r\n".getBytes(charset)
 
   def args: List[String]
   def data: Option[List[Byte]]
 
   def toBytes: Array[Byte] = {
-    val lines = List[Option[List[Byte]]](Some(args.mkString(" ").getBytes(Charset.forName("UTF-8")).toList), data)
-    val length = lines.flatMap{_.map{_.length}}.sum
-    val bytebuf = lines.foldLeft(ByteBuffer.allocate(length + (2 * delimiter.length))) {
+    val lines = List[Option[List[Byte]]](Some(args.mkString(" ").getBytes(charset).toList), data)
+    val numBytes = lines.flatMap{_.map{_.length}}.sum
+    val bytebuf = lines.foldLeft(ByteBuffer.allocate(numBytes + (2 * delimiter.length))) {
       case (buf, Some(bytes)) => buf.put(bytes.toArray).put(delimiter)
       case (buf, _) => buf
     }
@@ -34,7 +35,7 @@ object Command {
     def exptime: Int
     val value: List[Byte]
 
-    override def args: List[String] =
+    override val args =
       List(
         this.getClass.getSimpleName.toLowerCase,
         key.value,
@@ -43,7 +44,7 @@ object Command {
         value.length.toString
       )
 
-    override val data: Option[List[Byte]] = Some(value)
+    override val data = Some(value)
   }
 
   case class Set(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
@@ -53,7 +54,7 @@ object Command {
   case class Prepend(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
 
   case class Cas(override val key: Key, override val flags: Int, override val exptime: Int, casUnique: Long, override val value: List[Byte]) extends StorageCommand {
-    override def args: List[String] =
+    override val args =
       List(
         this.getClass.getSimpleName.toLowerCase,
         key.value,
@@ -69,19 +70,26 @@ object Command {
 
     override val data = None
 
-    override def args: List[String] =
-      this.getClass.getSimpleName.toLowerCase :: keys.map {_.value}
+    override val args = this.getClass.getSimpleName.toLowerCase :: keys.map {_.value}
   }
 
   case class Get(override val keys: List[Key]) extends RetrievalCommand
 
   case class Gets(override val keys: List[Key]) extends RetrievalCommand
 
-  //  case class Delete(key:Key) extends Command
-  //
+  case class Delete(key:Key) extends Command with Response.DeleteResponseParser {
+    override val data = None
+
+    override val args = List("delete", key.value)
+  }
+
   //  case class Increment(key:Key, value: Int) extends Command
   //  case class Decrement(key:Key, value: Int) extends Command
-  //
-  //  case class Touch(key:Key, exptime:Int) extends Command
+
+  case class Touch(key:Key, exptime:Int) extends Command with Response.TouchResponseParser {
+    override val data = None
+
+    override val args = List("touch", key.value, exptime.toString)
+  }
 
 }

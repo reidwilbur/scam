@@ -1,7 +1,10 @@
 package com.wilb0t.memcache
 
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, FunSpec}
 
+@RunWith(classOf[JUnitRunner])
 class CommandSpec extends FunSpec with Matchers {
   describe("A Key") {
     it("should throw IllegalArgumentException when the value longer than 250") {
@@ -61,6 +64,34 @@ class CommandSpec extends FunSpec with Matchers {
 
     it("should not have data") {
       Command.Get(List(Command.Key("somekey"))).data should be (None)
+    }
+  }
+
+  describe("A Delete command") {
+    it("should serialize args to List[String]") {
+      val cmd = Command.Delete(Command.Key("somekey"))
+
+      cmd.args should equal (List("delete", "somekey"))
+    }
+
+    it("should not have any data") {
+      val cmd = Command.Delete(Command.Key("somekey"))
+
+      cmd.data should equal (None)
+    }
+  }
+
+  describe("A Touch command") {
+    it("should serialize args to List[String]") {
+      val cmd = Command.Touch(Command.Key("somekey"), 3600)
+
+      cmd.args should equal (List("touch", "somekey", "3600"))
+    }
+
+    it("should not have any data") {
+      val cmd = Command.Touch(Command.Key("somekey"), 3600)
+
+      cmd.data should equal (None)
     }
   }
 }

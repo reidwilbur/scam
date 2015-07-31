@@ -6,7 +6,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Try}
 
 trait Client {
-  def execute(command:Command)(implicit ec:ExecutionContext) : Future[List[Response]]
+  def execute(command:Command)(implicit ec:ExecutionContext) : Future[Try[List[Response]]]
 }
 
 object Client {
@@ -18,7 +18,7 @@ object Client {
         val in = socket.getInputStream
         val out = socket.getOutputStream
 
-        override def execute(command: Command)(implicit ec: ExecutionContext): Future[List[Response]] = Future {
+        override def execute(command: Command)(implicit ec: ExecutionContext): Future[Try[List[Response]]] = Future {
           out.write(command.toBytes)
           out.flush()
           command.parseResponse(in)

@@ -9,7 +9,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext}
 
 @RunWith(classOf[JUnitRunner])
-class ClientSpec extends FunSpec with Matchers {
+class ClientSpec extends FunSpec with Matchers with TryValues {
   describe("A Client") {
     it("should execute commands") {
 
@@ -18,16 +18,18 @@ class ClientSpec extends FunSpec with Matchers {
       import scala.concurrent.ExecutionContext.Implicits.global
       val client = Client(address, 11211).get
 
-      val setResponse = Await.result(client.execute(Command.Set(Command.Key("somekey"), 0, 3600, List[Byte](0x0, 0x1, 0x2, 0x3))), Duration.Inf)
+      val setResponse = Await.result(
+        client.execute(Command.Set(Command.Key("somekey"), 0, 3600, List[Byte](0x0, 0x1, 0x2, 0x3))),
+        Duration.Inf)
 
-      setResponse should have size (1)
-      setResponse.head should equal (Response.Stored())
+      setResponse.success.value should be(List(Response.Stored()))
 
-      val getResponse = Await.result(client.execute(Command.Get(List(Command.Key("somekey")))), Duration.Inf)
+      val getResponse = Await.result(
+        client.execute(Command.Get(List(Command.Key("somekey")))),
+        Duration.Inf)
 
-      getResponse should have size (1)
-      getResponse.head should equal (Response.Value(Command.Key("somekey"), 0, None, List[Byte](0x0, 0x1, 0x2, 0x3)))
+      getResponse.success.value should be(
+        List(Response.Value(Command.Key("somekey"), 0, None, List[Byte](0x0, 0x1, 0x2, 0x3))))
     }
   }
-
 }

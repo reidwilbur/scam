@@ -4,6 +4,7 @@ import java.io.InputStream
 import scala.annotation.tailrec
 import scala.io.Source
 import scala.collection.mutable.ListBuffer
+import scala.util.Try
 
 sealed trait Response
 
@@ -22,11 +23,12 @@ object Response {
   case class ServerError(error: String) extends Response
 
   trait Parser {
-    def parseResponse(input: InputStream): List[Response]
+    def parseResponse(input: InputStream): Try[List[Response]]
   }
 
   trait StorageResponseParser extends Parser {
-    override def parseResponse(input: InputStream): List[Response] = {
+    override def parseResponse(input: InputStream): Try[List[Response]] =
+    Try (
       Source.fromInputStream(input, "UTF-8").getLines().next() match {
         case "STORED" => List(Stored())
         case "NOT_STORED" => List(NotStored())
@@ -34,7 +36,7 @@ object Response {
         case "NOT_FOUND" => List(NotFound())
         case line => throw new IllegalArgumentException(s"Unable to parse response from server '$line'")
       }
-    }
+    )
   }
 
   trait RetrievalResponseParser extends Parser {
@@ -42,12 +44,10 @@ object Response {
     val valMatch = """^VALUE (\w+) (\d+) (\d+)$""".r
     val valCasMatch = """^VALUE (\w+) (\d+) (\d+) (\d+)$""".r
 
-    override def parseResponse(input: InputStream): List[Response] = {
+    override def parseResponse(input: InputStream): Try[List[Response]] = {
       @tailrec
       def parse(i: Iterator[Char], buff: ListBuffer[Response]): List[Response] = {
-        val (chars, rest) = i.span {
-          _ != '\r'
-        }
+        val (chars, rest) = i.span {_ != '\r'}
         chars.mkString("") match {
           case endMatch() =>
             rest.dropWhile{_ == '\r'}.dropWhile{_ == '\n'}
@@ -66,8 +66,32 @@ object Response {
           case line => throw new IllegalArgumentException(s"Can't process server input '$line'")
         }
       }
-      parse(Source.fromInputStream(input).buffered, ListBuffer[Response]())
+
+      Try(
+        parse(Source.fromInputStream(input).buffered, ListBuffer[Response]())
+      )
     }
   }
 
+  trait DeleteResponseParser extends Parser {
+    override def parseResponse(input: InputStream): Try[List[Response]] =
+      Try (
+        Source.fromInputStream(input, "UTF-8").getLines().next() match {
+          case "DELETED" => List(Deleted())
+          case "NOT_FOUND" => List(NotFound())
+          case line => throw new IllegalArgumentException(s"Unable to parse response from server '$line'")
+        }
+      )
+  }
+
+  trait TouchResponseParser extends Parser {
+    override def parseResponse(input: InputStream): Try[List[Response]] =
+      Try (
+        Source.fromInputStream(input, "UTF-8").getLines().next() match {
+          case "TOUCHED" => List(Touched())
+          case "NOT_FOUND" => List(NotFound())
+          case line => throw new IllegalArgumentException(s"Unable to parse response from server '$line'")
+        }
+      )
+  }
 }
