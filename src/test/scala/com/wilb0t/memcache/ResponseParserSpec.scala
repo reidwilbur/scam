@@ -33,6 +33,21 @@ class ResponseParserSpec extends FunSpec with Matchers with TryValues {
         .success.value should equal (List(Response.NotFound()))
     }
 
+    it("should return Error for an ERROR server message") {
+      new Response.StorageResponseParser {}.parseResponse(stringStream("ERROR\r\n"))
+        .success.value should equal (List(Response.Error()))
+    }
+
+    it("should return ClientError for a CLIENT_ERROR server message") {
+      new Response.StorageResponseParser {}.parseResponse(stringStream("CLIENT_ERROR some error foo\r\n"))
+        .success.value should equal (List(Response.ClientError("some error foo")))
+    }
+
+    it("should return ServerError for a SERVER_ERROR server message") {
+      new Response.StorageResponseParser {}.parseResponse(stringStream("SERVER_ERROR some error foo\r\n"))
+        .success.value should equal (List(Response.ServerError("some error foo")))
+    }
+
     it("should fail with IllegalArgumentException for any unhandled server message") {
       new Response.StorageResponseParser {}.parseResponse(stringStream("adsf\r\n"))
         .failure.exception.getClass should be (classOf[IllegalArgumentException])
@@ -60,6 +75,21 @@ class ResponseParserSpec extends FunSpec with Matchers with TryValues {
       ))
     }
 
+    it("should return Error for an ERROR server message") {
+      new Response.RetrievalResponseParser {}.parseResponse(stringStream("ERROR\r\n"))
+        .success.value should equal (List(Response.Error()))
+    }
+
+    it("should return ClientError for a CLIENT_ERROR server message") {
+      new Response.RetrievalResponseParser {}.parseResponse(stringStream("CLIENT_ERROR some error foo\r\n"))
+        .success.value should equal (List(Response.ClientError("some error foo")))
+    }
+
+    it("should return ServerError for a SERVER_ERROR server message") {
+      new Response.RetrievalResponseParser {}.parseResponse(stringStream("SERVER_ERROR some error foo\r\n"))
+        .success.value should equal (List(Response.ServerError("some error foo")))
+    }
+
     it("should fail with IllegalArgumentException for any unhandled server message") {
       new Response.RetrievalResponseParser {}.parseResponse(stringStream("adsf\r\n"))
         .failure.exception.getClass should be (classOf[IllegalArgumentException])
@@ -77,6 +107,21 @@ class ResponseParserSpec extends FunSpec with Matchers with TryValues {
         .success.value should equal (List(Response.Deleted()))
     }
 
+    it("should return Error for an ERROR server message") {
+      new Response.DeleteResponseParser {}.parseResponse(stringStream("ERROR\r\n"))
+        .success.value should equal (List(Response.Error()))
+    }
+
+    it("should return ClientError for a CLIENT_ERROR server message") {
+      new Response.DeleteResponseParser {}.parseResponse(stringStream("CLIENT_ERROR some error foo\r\n"))
+        .success.value should equal (List(Response.ClientError("some error foo")))
+    }
+
+    it("should return ServerError for a SERVER_ERROR server message") {
+      new Response.DeleteResponseParser {}.parseResponse(stringStream("SERVER_ERROR some error foo\r\n"))
+        .success.value should equal (List(Response.ServerError("some error foo")))
+    }
+
     it("should fail with IllegalArgumentException for any unhandled server message") {
       new Response.DeleteResponseParser {}.parseResponse(stringStream("adsf\r\n"))
         .failure.exception.getClass should be (classOf[IllegalArgumentException])
@@ -92,6 +137,21 @@ class ResponseParserSpec extends FunSpec with Matchers with TryValues {
     it("should return Touched for TOUCHED server message") {
      new Response.TouchResponseParser {}.parseResponse(stringStream("TOUCHED\r\n"))
         .success.value should equal (List(Response.Touched()))
+    }
+
+    it("should return Error for an ERROR server message") {
+      new Response.TouchResponseParser {}.parseResponse(stringStream("ERROR\r\n"))
+        .success.value should equal (List(Response.Error()))
+    }
+
+    it("should return ClientError for a CLIENT_ERROR server message") {
+      new Response.TouchResponseParser {}.parseResponse(stringStream("CLIENT_ERROR some error foo\r\n"))
+        .success.value should equal (List(Response.ClientError("some error foo")))
+    }
+
+    it("should return ServerError for a SERVER_ERROR server message") {
+      new Response.TouchResponseParser {}.parseResponse(stringStream("SERVER_ERROR some error foo\r\n"))
+        .success.value should equal (List(Response.ServerError("some error foo")))
     }
 
     it("should fail with IllegalArgumentException for any unhandled server message") {

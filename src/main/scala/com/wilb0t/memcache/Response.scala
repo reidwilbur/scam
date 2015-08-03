@@ -26,6 +26,19 @@ object Response {
     def parseResponse(input: InputStream): Try[List[Response]]
   }
 
+  object Error {
+    val clientError = """^CLIENT_ERROR (.*)$""".r
+    val serverError = """^SERVER_ERROR (.*)$""".r
+
+    def unapply(s: String): Option[Response] =
+      s match {
+        case "ERROR" => Some(Error())
+        case clientError(msg) => Some(ClientError(msg))
+        case serverError(msg) => Some(ServerError(msg))
+        case _ => None
+      }
+  }
+
   trait StorageResponseParser extends Parser {
     override def parseResponse(input: InputStream): Try[List[Response]] =
     Try (
@@ -34,34 +47,37 @@ object Response {
         case "NOT_STORED" => List(NotStored())
         case "EXISTS" => List(Exists())
         case "NOT_FOUND" => List(NotFound())
+        case Error(e) => List(e)
         case line => throw new IllegalArgumentException(s"Unable to parse response from server '$line'")
       }
     )
   }
 
   trait RetrievalResponseParser extends Parser {
-    val endMatch = """^END$""".r
-    val valMatch = """^VALUE (\w+) (\d+) (\d+)$""".r
-    val valCasMatch = """^VALUE (\w+) (\d+) (\d+) (\d+)$""".r
+    val end = """^END$""".r
+    val value = """^VALUE (\w+) (\d+) (\d+)$""".r
+    val valueWithCas = """^VALUE (\w+) (\d+) (\d+) (\d+)$""".r
 
     override def parseResponse(input: InputStream): Try[List[Response]] = {
       @tailrec
       def parse(i: Iterator[Char], buff: ListBuffer[Response]): List[Response] = {
         val (chars, rest) = i.span {_ != '\r'}
         chars.mkString("") match {
-          case endMatch() =>
+          case end() =>
             rest.dropWhile{_ == '\r'}.dropWhile{_ == '\n'}
             buff.toList
 
-          case valMatch(key, flags, bytes) =>
+          case value(key, flags, bytes) =>
             val (data, toProcess) = rest.dropWhile {_ == '\r'}.dropWhile {_ == '\n'}.duplicate
             buff += Value(Key(key), flags.toInt, None, data.take(bytes.toInt).map {_.toByte}.toList)
             parse(toProcess.drop(bytes.toInt).dropWhile {_ == '\r'}.dropWhile {_ == '\n'}, buff)
 
-          case valCasMatch(key, flags, bytes, casUnique) =>
+          case valueWithCas(key, flags, bytes, casUnique) =>
             val (data, toProcess) = rest.dropWhile {_ == '\r'}.dropWhile {_ == '\n'}.duplicate
             buff += Value(Key(key), flags.toInt, Some(casUnique.toLong), data.take(bytes.toInt).map {_.toByte}.toList)
             parse(toProcess.drop(bytes.toInt).dropWhile {_ == '\r'}.dropWhile {_ == '\n'}, buff)
+
+          case Error(e) => List(e)
 
           case line => throw new IllegalArgumentException(s"Can't process server input '$line'")
         }
@@ -79,6 +95,7 @@ object Response {
         Source.fromInputStream(input, "UTF-8").getLines().next() match {
           case "DELETED" => List(Deleted())
           case "NOT_FOUND" => List(NotFound())
+          case Error(e) => List(e)
           case line => throw new IllegalArgumentException(s"Unable to parse response from server '$line'")
         }
       )
@@ -90,6 +107,7 @@ object Response {
         Source.fromInputStream(input, "UTF-8").getLines().next() match {
           case "TOUCHED" => List(Touched())
           case "NOT_FOUND" => List(NotFound())
+          case Error(e) => List(e)
           case line => throw new IllegalArgumentException(s"Unable to parse response from server '$line'")
         }
       )

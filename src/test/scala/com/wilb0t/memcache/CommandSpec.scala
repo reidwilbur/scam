@@ -7,6 +7,10 @@ import org.scalatest.{Matchers, FunSpec}
 @RunWith(classOf[JUnitRunner])
 class CommandSpec extends FunSpec with Matchers {
   describe("A Key") {
+    it("should handle valid key names") {
+      Command.Key("somekey").value should be ("somekey")
+    }
+
     it("should throw IllegalArgumentException when the value longer than 250") {
       intercept[IllegalArgumentException] {
         Command.Key("a" * 251)
@@ -94,4 +98,5 @@ class CommandSpec extends FunSpec with Matchers {
       cmd.data should equal (None)
     }
   }
+
 }
