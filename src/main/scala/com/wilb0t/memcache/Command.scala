@@ -10,13 +10,12 @@ sealed trait Command extends Response.ResponseParser {
 object Command {
 
   protected case class Packet(
-    opcode:Byte,
-    dataType:Byte,
-    opaque:Int,
-    cas:Long,
-    extras:Option[List[Array[Byte]]],
-    key:Option[Array[Byte]],
-    value:Option[Array[Byte]]) {
+    opcode: Byte,
+    opaque: Int,
+    cas: Long,
+    extras: Option[List[Array[Byte]]],
+    key:    Option[Array[Byte]],
+    value:  Option[Array[Byte]]) {
 
     val magic: Byte = 0x80.toByte
 
@@ -28,43 +27,49 @@ object Command {
       val valLen = value.map {_.length}.getOrElse(0)
       val bodyLen = extLen + keyLen + valLen
       val bytes = ByteBuffer.allocate(headerLen + bodyLen)
-      bytes.put(magic)
-      bytes.put(opcode)
-      bytes.put((keyLen >>> 8).toByte)
-      bytes.put(keyLen.toByte)
-      bytes.put(extLen.toByte)
-      bytes.put(dataType)
-      bytes.put(0x0.toByte)
-      bytes.put(0x0.toByte)
-      bytes.put( (bodyLen >>> 24).toByte)
-      bytes.put( (bodyLen >>> 16).toByte)
-      bytes.put( (bodyLen >>> 8).toByte)
-      bytes.put( bodyLen.toByte)
-      bytes.put( (opaque >>> 24).toByte)
-      bytes.put( (opaque >>> 16).toByte)
-      bytes.put( (opaque >>> 8).toByte)
-      bytes.put( opaque.toByte)
-      bytes.put( (cas >>> 56).toByte)
-      bytes.put( (cas >>> 48).toByte)
-      bytes.put( (cas >>> 40).toByte)
-      bytes.put( (cas >>> 32).toByte)
-      bytes.put( (cas >>> 24).toByte)
-      bytes.put( (cas >>> 16).toByte)
-      bytes.put( (cas >>> 8).toByte)
-      bytes.put( cas.toByte)
-      extras.foreach { (arrays) => arrays.foreach { bytes.put(_) } }
-      key.foreach { bytes.put(_) }
-      value.foreach { bytes.put(_) }
+      bytes
+        .put(magic)
+        .put(opcode)
+        .put((keyLen >>> 8).toByte)
+        .put(keyLen.toByte)
+        .put(extLen.toByte)
+        .put(0x0.toByte)
+        .put(0x0.toByte)
+        .put(0x0.toByte)
+        .put((bodyLen >>> 24).toByte)
+        .put((bodyLen >>> 16).toByte)
+        .put((bodyLen >>> 8).toByte)
+        .put(bodyLen.toByte)
+        .put((opaque >>> 24).toByte)
+        .put((opaque >>> 16).toByte)
+        .put((opaque >>> 8).toByte)
+        .put(opaque.toByte)
+        .put((cas >>> 56).toByte)
+        .put((cas >>> 48).toByte)
+        .put((cas >>> 40).toByte)
+        .put((cas >>> 32).toByte)
+        .put((cas >>> 24).toByte)
+        .put((cas >>> 16).toByte)
+        .put((cas >>> 8).toByte)
+        .put(cas.toByte)
+      extras.foreach { (arrays) => arrays.foreach { bytes.put } }
+      key.foreach { bytes.put }
+      value.foreach { bytes.put }
 
       bytes.array()
     }
   }
 
-  case class Set(key: String, flags: Int, exptime: Int, value: Array[Byte]) extends Command {
-    def opcode: Byte = 0x01
+  trait Setter {
+    def opcode: Byte
+    def key: String
+    def flags: Int
+    def exptime: Int
+    def cas: Option[Long]
+    def value: Array[Byte]
 
     def serialize: Array[Byte] = {
-      val expBytes = Array(
+      val extBytes = Array(
         (flags >>> 24).toByte,
         (flags >>> 16).toByte,
         (flags >>> 8).toByte,
@@ -74,21 +79,33 @@ object Command {
         (exptime >>> 8).toByte,
         exptime.toByte
       )
-      Packet(opcode, 0x0, 0x0, 0x0, Some(List(expBytes)), Some(key.getBytes(Charset.forName("UTF-8"))), Some(value)).serialize
+      Packet(opcode, 0x0, cas.getOrElse(0), Some(List(extBytes)), Some(key.getBytes(Charset.forName("UTF-8"))), Some(value)).serialize
     }
+  }
+
+  case class Set(override val key: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], override val value: Array[Byte]) extends Command with Setter {
+    override val opcode: Byte = 0x01
+  }
+
+  case class Add(override val key: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], override val value: Array[Byte]) extends Command with Setter {
+    override val opcode: Byte = 0x02
+  }
+
+  case class Replace(override val key: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], override val value: Array[Byte]) extends Command with Setter {
+    override val opcode: Byte = 0x03
   }
 
   case class Get(key: String) extends Command {
     def opcode: Byte = 0x00
 
     def serialize: Array[Byte] =
-      Packet(opcode, 0x0, 0x0, 0x0, None, Some(key.getBytes(Charset.forName("UTF-8"))), None).serialize
+      Packet(opcode, 0x0, 0x0, None, Some(key.getBytes(Charset.forName("UTF-8"))), None).serialize
   }
 
   case class Delete(key: String) extends Command {
     def opcode: Byte = 0x04
 
     def serialize: Array[Byte] =
-      Packet(opcode, 0x0, 0x0, 0x0, None, Some(key.getBytes(Charset.forName("UTF-8"))), None).serialize
+      Packet(opcode, 0x0, 0x0, None, Some(key.getBytes(Charset.forName("UTF-8"))), None).serialize
   }
 }

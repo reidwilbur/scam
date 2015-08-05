@@ -15,15 +15,15 @@ object Response {
 
   protected case class PacketHeader(bytes: Array[Byte]) {
 
-    val magic: Byte = bytes(0)
-    val opcode: Byte = bytes(1)
-    val keyLen: Int = ((bytes(2) << 8) & 0xff00) | (bytes(3) & 0x00ff)
-    val extLen: Int = bytes(4) & 0xff
+    val magic: Byte    = bytes(0)
+    val opcode: Byte   = bytes(1)
+    val keyLen: Int    = ((bytes(2) << 8) & 0xff00) | (bytes(3) & 0x00ff)
+    val extLen: Int    = bytes(4) & 0xff
     def dataType: Byte = bytes(5)
-    val status: Int = ((bytes(6) << 8) & 0xff00) | (bytes(7) & 0x00ff)
-    val bodyLen: Int = toInt(bytes, 8)
-    def opaque: Int  = toInt(bytes, 12)
-    def cas: Long = toLong(bytes, 16)
+    val status: Int    = ((bytes(6) << 8) & 0xff00) | (bytes(7) & 0x00ff)
+    val bodyLen: Int   = toInt(bytes, 8)
+    def opaque: Int    = toInt(bytes, 12)
+    def cas: Long      = toLong(bytes, 16)
   }
 
   protected case class Packet(header: PacketHeader, body: Array[Byte]) {
@@ -52,7 +52,7 @@ object Response {
       val packet = Packet(header, bodyBytes)
 
       header.status match {
-        case 0x00 => List(Success(packet.key.map{new String(_, "UTF-8")}, header.cas, packet.value))
+        case 0x00 => List(Success(packet.key.map{ new String(_, "UTF-8") }, header.cas, packet.value))
         case 0x01 => List(KeyNotFound())
         case 0x02 => List(KeyExists())
         case 0x03 => List(ValueTooLarge())
@@ -61,7 +61,7 @@ object Response {
         case 0x06 => List(IncDecNonNumericValue())
         case 0x81 => List(UnknownCommand())
         case 0x82 => List(OutOfMemory())
-        case _ => List(UnknownServerResponse())
+        case _    => List(UnknownServerResponse())
       }
     }
   }

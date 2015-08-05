@@ -18,7 +18,7 @@ class ClientSpec extends FunSpec with Matchers with TryValues {
       val client = Client(address, 11211).get
 
       val setResponse = Await.result(
-        client.execute(Command.Set("somekey", 0, 3600, Array[Byte](0x0, 0x1, 0x2, 0x3))),
+        client.execute(Command.Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3))),
         Duration.Inf)
 
       setResponse.success.value should matchPattern { case List(Response.Success(None, _, None)) => }
@@ -28,6 +28,26 @@ class ClientSpec extends FunSpec with Matchers with TryValues {
         Duration.Inf)
 
       getResponse.success.value should matchPattern { case List(Response.Success(_, _, Some(Array(0x0,0x1,0x2,0x3)))) => }
+
+      val addResponse = Await.result(
+        client.execute(Command.Add("somekey", 0, 3600, None, Array[Byte](0x4,0x5))),
+        Duration.Inf)
+
+      addResponse.success.value should matchPattern{ case List(Response.KeyExists()) => }
+
+      val replaceResponse = Await.result(
+        client.execute(Command.Replace("somekey", 0, 3600, None, Array[Byte](0x7,0x8))),
+        Duration.Inf
+      )
+
+      replaceResponse.success.value should matchPattern { case List(Response.Success(None, _, None)) => }
+
+      val getReplacedResponse = Await.result(
+        client.execute(Command.Get("somekey")),
+        Duration.Inf
+      )
+
+      getReplacedResponse.success.value should matchPattern { case List(Response.Success(_, _, Some(Array(0x7,0x8)))) => }
 
       val deleteResponse = Await.result(
         client.execute(Command.Delete("somekey")),
