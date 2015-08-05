@@ -52,7 +52,7 @@ object Response {
       val packet = Packet(header, bodyBytes)
 
       header.status match {
-        case 0x00 => List(Success(header.opcode, header.cas))
+        case 0x00 => List(Success(packet.key.map{new String(_, "UTF-8")}, header.cas, packet.value))
         case 0x01 => List(KeyNotFound())
         case 0x02 => List(KeyExists())
         case 0x03 => List(ValueTooLarge())
@@ -66,7 +66,7 @@ object Response {
     }
   }
 
-  case class Success(opcode: Byte, cas: Long) extends Response {
+  case class Success(key: Option[String], cas: Long, value: Option[Array[Byte]]) extends Response {
   }
 
   case class KeyNotFound() extends Response {

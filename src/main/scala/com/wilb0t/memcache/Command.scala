@@ -18,7 +18,7 @@ object Command {
     key:Option[Array[Byte]],
     value:Option[Array[Byte]]) {
 
-    val magic: Byte = 0x81.toByte
+    val magic: Byte = 0x80.toByte
 
     val headerLen: Int = 24
 
@@ -28,44 +28,33 @@ object Command {
       val valLen = value.map {_.length}.getOrElse(0)
       val bodyLen = extLen + keyLen + valLen
       val bytes = ByteBuffer.allocate(headerLen + bodyLen)
-      bytes.put(0, magic)
-      bytes.put(1, opcode)
-      bytes.put(2, (keyLen >>> 8).toByte)
-      bytes.put(3, keyLen.toByte)
-      bytes.put(4, extLen.toByte)
-      bytes.put(5, dataType)
-      bytes.put(6, 0x0)
-      bytes.put(7, 0x0)
-      bytes.put(8,  (bodyLen >>> 24).toByte)
-      bytes.put(9,  (bodyLen >>> 16).toByte)
-      bytes.put(10, (bodyLen >>> 8).toByte)
-      bytes.put(11, bodyLen.toByte)
-      bytes.put(12, (opaque >>> 24).toByte)
-      bytes.put(13, (opaque >>> 16).toByte)
-      bytes.put(14, (opaque >>> 8).toByte)
-      bytes.put(15, opaque.toByte)
-      bytes.put(16, (cas >>> 56).toByte)
-      bytes.put(17, (cas >>> 48).toByte)
-      bytes.put(18, (cas >>> 40).toByte)
-      bytes.put(19, (cas >>> 32).toByte)
-      bytes.put(20, (cas >>> 24).toByte)
-      bytes.put(21, (cas >>> 16).toByte)
-      bytes.put(22, (cas >>> 8).toByte)
-      bytes.put(23, cas.toByte)
-      val keyOfs = extras.foldLeft(headerLen) {
-        (o, arrays) =>
-          arrays.foldLeft(o) {
-            (ofs, array) =>
-              bytes.put(array, ofs, array.length)
-              ofs + array.length
-          }
-      }
-      val valOfs = key.foldLeft(keyOfs) {
-        (ofs, array) =>
-          bytes.put(array, ofs, array.length)
-          ofs + array.length
-      }
-      value.foreach { array => bytes.put(array, valOfs, array.length) }
+      bytes.put(magic)
+      bytes.put(opcode)
+      bytes.put((keyLen >>> 8).toByte)
+      bytes.put(keyLen.toByte)
+      bytes.put(extLen.toByte)
+      bytes.put(dataType)
+      bytes.put(0x0.toByte)
+      bytes.put(0x0.toByte)
+      bytes.put( (bodyLen >>> 24).toByte)
+      bytes.put( (bodyLen >>> 16).toByte)
+      bytes.put( (bodyLen >>> 8).toByte)
+      bytes.put( bodyLen.toByte)
+      bytes.put( (opaque >>> 24).toByte)
+      bytes.put( (opaque >>> 16).toByte)
+      bytes.put( (opaque >>> 8).toByte)
+      bytes.put( opaque.toByte)
+      bytes.put( (cas >>> 56).toByte)
+      bytes.put( (cas >>> 48).toByte)
+      bytes.put( (cas >>> 40).toByte)
+      bytes.put( (cas >>> 32).toByte)
+      bytes.put( (cas >>> 24).toByte)
+      bytes.put( (cas >>> 16).toByte)
+      bytes.put( (cas >>> 8).toByte)
+      bytes.put( cas.toByte)
+      extras.foreach { (arrays) => arrays.foreach { bytes.put(_) } }
+      key.foreach { bytes.put(_) }
+      value.foreach { bytes.put(_) }
 
       bytes.array()
     }
@@ -76,6 +65,10 @@ object Command {
 
     def serialize: Array[Byte] = {
       val expBytes = Array(
+        (flags >>> 24).toByte,
+        (flags >>> 16).toByte,
+        (flags >>> 8).toByte,
+        flags.toByte,
         (exptime >>> 24).toByte,
         (exptime >>> 16).toByte,
         (exptime >>> 8).toByte,
@@ -92,4 +85,10 @@ object Command {
       Packet(opcode, 0x0, 0x0, 0x0, None, Some(key.getBytes(Charset.forName("UTF-8"))), None).serialize
   }
 
+  case class Delete(key: String) extends Command {
+    def opcode: Byte = 0x04
+
+    def serialize: Array[Byte] =
+      Packet(opcode, 0x0, 0x0, 0x0, None, Some(key.getBytes(Charset.forName("UTF-8"))), None).serialize
+  }
 }
