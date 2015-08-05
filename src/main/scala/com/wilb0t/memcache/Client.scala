@@ -19,9 +19,11 @@ object Client {
         val out = socket.getOutputStream
 
         override def execute(command: Command)(implicit ec: ExecutionContext): Future[Try[List[Response]]] = Future {
-          out.write(command.toBytes)
-          out.flush()
-          command.parseResponse(in)
+          Try {
+            out.write(command.serialize)
+            out.flush()
+            command.parseResponse(in)
+          }
         }
       }
     )

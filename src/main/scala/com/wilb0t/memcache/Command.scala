@@ -3,93 +3,93 @@ package com.wilb0t.memcache
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
-sealed trait Command extends Response.Parser {
-  val charset = Charset.forName("UTF-8")
-  val delimiter = "\r\n".getBytes(charset)
-
-  def args: List[String]
-  def data: Option[List[Byte]]
-
-  def toBytes: Array[Byte] = {
-    val lines = List[Option[List[Byte]]](Some(args.mkString(" ").getBytes(charset).toList), data)
-    val numBytes = lines.flatMap{_.map{_.length}}.sum
-    val bytebuf = lines.foldLeft(ByteBuffer.allocate(numBytes + (2 * delimiter.length))) {
-      case (buf, Some(bytes)) => buf.put(bytes.toArray).put(delimiter)
-      case (buf, _) => buf
-    }
-    bytebuf.array()
-  }
+sealed trait Command extends Response.ResponseParser {
+  def serialize: Array[Byte]
 }
 
 object Command {
 
-  case class Key(value: String) {
-    if (value.length > 250 || value.contains(' ') || value.contains('\t')) {
-      throw new IllegalArgumentException("Keys must contain no whitespace and be 250 chars or less")
+  protected case class Packet(
+    opcode:Byte,
+    dataType:Byte,
+    opaque:Int,
+    cas:Long,
+    extras:Option[List[Array[Byte]]],
+    key:Option[Array[Byte]],
+    value:Option[Array[Byte]]) {
+
+    val magic: Byte = 0x81.toByte
+
+    val headerLen: Int = 24
+
+    def serialize: Array[Byte] = {
+      val extLen = extras.map { opts => opts.map {_.length}.sum }.getOrElse(0)
+      val keyLen = key.map {_.length}.getOrElse(0)
+      val valLen = value.map {_.length}.getOrElse(0)
+      val bodyLen = extLen + keyLen + valLen
+      val bytes = ByteBuffer.allocate(headerLen + bodyLen)
+      bytes.put(0, magic)
+      bytes.put(1, opcode)
+      bytes.put(2, (keyLen >>> 8).toByte)
+      bytes.put(3, keyLen.toByte)
+      bytes.put(4, extLen.toByte)
+      bytes.put(5, dataType)
+      bytes.put(6, 0x0)
+      bytes.put(7, 0x0)
+      bytes.put(8,  (bodyLen >>> 24).toByte)
+      bytes.put(9,  (bodyLen >>> 16).toByte)
+      bytes.put(10, (bodyLen >>> 8).toByte)
+      bytes.put(11, bodyLen.toByte)
+      bytes.put(12, (opaque >>> 24).toByte)
+      bytes.put(13, (opaque >>> 16).toByte)
+      bytes.put(14, (opaque >>> 8).toByte)
+      bytes.put(15, opaque.toByte)
+      bytes.put(16, (cas >>> 56).toByte)
+      bytes.put(17, (cas >>> 48).toByte)
+      bytes.put(18, (cas >>> 40).toByte)
+      bytes.put(19, (cas >>> 32).toByte)
+      bytes.put(20, (cas >>> 24).toByte)
+      bytes.put(21, (cas >>> 16).toByte)
+      bytes.put(22, (cas >>> 8).toByte)
+      bytes.put(23, cas.toByte)
+      val keyOfs = extras.foldLeft(headerLen) {
+        (o, arrays) =>
+          arrays.foldLeft(o) {
+            (ofs, array) =>
+              bytes.put(array, ofs, array.length)
+              ofs + array.length
+          }
+      }
+      val valOfs = key.foldLeft(keyOfs) {
+        (ofs, array) =>
+          bytes.put(array, ofs, array.length)
+          ofs + array.length
+      }
+      value.foreach { array => bytes.put(array, valOfs, array.length) }
+
+      bytes.array()
     }
   }
 
-  trait StorageCommand extends Command with Response.StorageResponseParser {
-    def key: Key
-    def flags: Int
-    def exptime: Int
-    val value: List[Byte]
+  case class Set(key: String, flags: Int, exptime: Int, value: Array[Byte]) extends Command {
+    def opcode: Byte = 0x01
 
-    override val args =
-      List(
-        this.getClass.getSimpleName.toLowerCase,
-        key.value,
-        (flags & 0xffff).toString(),
-        exptime.toString,
-        value.length.toString
+    def serialize: Array[Byte] = {
+      val expBytes = Array(
+        (exptime >>> 24).toByte,
+        (exptime >>> 16).toByte,
+        (exptime >>> 8).toByte,
+        exptime.toByte
       )
-
-    override val data = Some(value)
+      Packet(opcode, 0x0, 0x0, 0x0, Some(List(expBytes)), Some(key.getBytes(Charset.forName("UTF-8"))), Some(value)).serialize
+    }
   }
 
-  case class Set(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
-  case class Add(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
-  case class Replace(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
-  case class Append(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
-  case class Prepend(override val key: Key, override val flags: Int, override val exptime: Int, override val value: List[Byte]) extends StorageCommand
+  case class Get(key: String) extends Command {
+    def opcode: Byte = 0x00
 
-  case class Cas(override val key: Key, override val flags: Int, override val exptime: Int, casUnique: Long, override val value: List[Byte]) extends StorageCommand {
-    override val args =
-      List(
-        this.getClass.getSimpleName.toLowerCase,
-        key.value,
-        (flags & 0xffff).toString(),
-        exptime.toString,
-        value.length.toString,
-        casUnique.toString
-      )
-  }
-
-  trait RetrievalCommand extends Command with Response.RetrievalResponseParser {
-    def keys: List[Key]
-
-    override val data = None
-
-    override val args = this.getClass.getSimpleName.toLowerCase :: keys.map {_.value}
-  }
-
-  case class Get(override val keys: List[Key]) extends RetrievalCommand
-
-  case class Gets(override val keys: List[Key]) extends RetrievalCommand
-
-  case class Delete(key:Key) extends Command with Response.DeleteResponseParser {
-    override val data = None
-
-    override val args = List("delete", key.value)
-  }
-
-  //  case class Increment(key:Key, value: Int) extends Command
-  //  case class Decrement(key:Key, value: Int) extends Command
-
-  case class Touch(key:Key, exptime:Int) extends Command with Response.TouchResponseParser {
-    override val data = None
-
-    override val args = List("touch", key.value, exptime.toString)
+    def serialize: Array[Byte] =
+      Packet(opcode, 0x0, 0x0, 0x0, None, Some(key.getBytes(Charset.forName("UTF-8"))), None).serialize
   }
 
 }
