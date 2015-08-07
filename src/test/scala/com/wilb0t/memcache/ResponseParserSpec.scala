@@ -35,7 +35,7 @@ class ResponseParserSpec extends FunSpec with Matchers with TryValues {
        0x04, 0x03, 0x02, 0x01
       ).map{_.toByte})
 
-      new ResponseParser {}.parseResponse(input) should be (Response.Success(None, 0x0807060504030201L, None))
+      new ResponseParser {}.parseResponse(input) should be (List(Response.Success(None, 0x0807060504030201L, None)))
     }
   }
 }

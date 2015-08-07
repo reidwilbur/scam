@@ -14,7 +14,6 @@ class ClientSpec extends FunSpec with Matchers with TryValues {
     it("should execute commands") {
       val address = InetAddress.getByName("192.168.59.103")
 
-      import scala.concurrent.ExecutionContext.Implicits.global
       val client = Client(address, 11211).get
 
       val setResponse = Await.result(
