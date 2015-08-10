@@ -8,8 +8,9 @@ import scala.util.{Try}
 
 trait Client {
   def execute(command:Command) : Future[Response]
-  def getM(keys: List[String]) : Future[List[Response]]
-  def setM(keysExp: List[(String,Int,Array[Byte])]) : Future[List[Response]]
+  def getM(gets: List[Command.Get]) : Future[List[Response]]
+  def setM(sets: List[Command.Set]) : Future[List[Response]]
+  def delM(sets: List[Command.Delete]) : Future[List[Response]]
   def close(): Unit
 }
 
@@ -29,28 +30,34 @@ object Client {
           Response.Parser(in)._2
         }
 
-        override def getM(keys: List[String]): Future[List[Response]] = Future {
-          val taggedKeys = keys.zipWithIndex
-          val last = taggedKeys.last
-          val quietGets = taggedKeys.init.map { case (key, i) => Command.GetQ(key, i) }
-          quietGets.foreach { get => out.write(get.serialize) }
-          out.write(Command.Get(last._1, last._2).serialize)
-          out.flush()
-          val responses = Response.Parser(in, last._2)
-          taggedKeys.map { case (key, i) => responses.getOrElse(i, Response.KeyNotFound())}
-        }
+        def executeM[T <: Command, QT <: Command]
+          (commands: List[T])(toQuiet: (T, Int) => QT)(defaultResponse: QT => Response)
+        : Future[List[Response]] =
+          Future {
+            val quietCmds = commands.zipWithIndex.map { case (cmd, i) => toQuiet(cmd, i) }
+            val quietSize = quietCmds.size
+            quietCmds.foreach { cmd => out.write(cmd.serialize) }
+            //the Noop triggers any responses for the quiet commands
+            out.write(Command.Noop(quietSize).serialize)
+            out.flush()
+            val responses = Response.Parser(in, quietSize)
+            quietCmds.map { cmd => responses.getOrElse(cmd.opaque, defaultResponse(cmd)) }
+          }
 
-        override def setM(keysExp: List[(String,Int,Array[Byte])]): Future[List[Response]] = Future {
-          val taggedKeys = keysExp.zipWithIndex
-          val last = taggedKeys.last
-          val quietGets =
-            taggedKeys.init.map { case ((key, exptime, value), i) => Command.SetQ(key, 0x0, exptime, i, None, value) } ++
-            List(last).map { case ((key, exptime, value), i) => Command.Set(key, 0x0, exptime, i, None, value)}
-          quietGets.foreach { get => out.write(get.serialize) }
-          out.flush()
-          val responses = Response.Parser(in, last._2)
-          taggedKeys.map { case ((key, exptime, value), i) => responses.getOrElse(i, Response.Success(Some(key), 0x0, Some(value)))}
-        }
+        override def getM(gets: List[Command.Get]): Future[List[Response]] =
+          executeM(gets)
+            { case (g, i) => Command.GetQ(g.getkey, i) }
+            { case _ => Response.KeyNotFound() }
+
+        override def setM(sets: List[Command.Set]): Future[List[Response]] =
+          executeM(sets)
+            { case (s, i) => Command.SetQ(s.setkey, s.flags, s.exptime, i, s.cas, s.setvalue) }
+            { case sq => Response.Success(Some(sq.setkey), 0x0, sq.value) }
+
+        override def delM(sets: List[Command.Delete]): Future[List[Response]] =
+          executeM(sets)
+            { case (d, i) => Command.DeleteQ(d.delkey, i) }
+            { case dq => Response.Success(Some(dq.delkey), 0x0, None) }
 
         override def close(): Unit = {
           in.close()

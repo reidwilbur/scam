@@ -78,8 +78,6 @@ object Command {
     override val value = Some(setvalue)
   }
 
-  trait QuietCommand
-
   case class Set(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x01.toByte
   }
@@ -96,15 +94,16 @@ object Command {
     override val opcode = 0x03.toByte
   }
 
-  case class Get(getkey: String, override val opaque: Int) extends Command {
+  case class Get(getkey: String) extends Command {
     override val opcode = 0x00.toByte
+    override val opaque = 0x0
     override val cas    = None
     override val extras = None
     override val key    = Some(getkey.getBytes(keyEncoding))
     override val value  = None
   }
 
-  case class GetQ(getkey: String, override val opaque: Int) extends Command with QuietCommand {
+  case class GetQ(getkey: String, override val opaque: Int) extends Command {
     override val opcode = 0x09.toByte
     override val cas    = None
     override val extras = None
@@ -118,6 +117,22 @@ object Command {
     override val cas    = None
     override val extras = None
     override val key    = Some(delkey.getBytes(keyEncoding))
+    override val value  = None
+  }
+
+  case class DeleteQ(delkey: String, override val opaque: Int) extends Command {
+    override val opcode = 0x14.toByte
+    override val cas    = None
+    override val extras = None
+    override val key    = Some(delkey.getBytes(keyEncoding))
+    override val value  = None
+  }
+
+  case class Noop(override val opaque: Int) extends Command {
+    override val opcode = 0x0a.toByte
+    override val cas    = None
+    override val extras = None
+    override val key    = None
     override val value  = None
   }
 }
