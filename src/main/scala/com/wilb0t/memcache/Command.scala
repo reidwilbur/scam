@@ -3,7 +3,7 @@ package com.wilb0t.memcache
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
-sealed trait Command extends Response.ResponseParser {
+sealed trait Command {
   def opcode: Byte
   def opaque: Int
   def cas:    Option[Long]
@@ -78,8 +78,14 @@ object Command {
     override val value = Some(setvalue)
   }
 
-  case class Set(override val setkey: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+  trait QuietCommand
+
+  case class Set(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x01.toByte
+  }
+
+  case class SetQ(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+    override val opcode = 0x11.toByte
   }
 
   case class Add(override val setkey: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
@@ -90,21 +96,28 @@ object Command {
     override val opcode = 0x03.toByte
   }
 
-  case class Get(getkey: String) extends Command {
-    override val opcode: Byte = 0x00.toByte
-    override val opaque = 0x0
-    override val cas = None
+  case class Get(getkey: String, override val opaque: Int) extends Command {
+    override val opcode = 0x00.toByte
+    override val cas    = None
     override val extras = None
-    override val key = Some(getkey.getBytes(keyEncoding))
-    override val value = None
+    override val key    = Some(getkey.getBytes(keyEncoding))
+    override val value  = None
+  }
+
+  case class GetQ(getkey: String, override val opaque: Int) extends Command with QuietCommand {
+    override val opcode = 0x09.toByte
+    override val cas    = None
+    override val extras = None
+    override val key    = Some(getkey.getBytes(keyEncoding))
+    override val value  = None
   }
 
   case class Delete(delkey: String) extends Command {
-    override val opcode: Byte = 0x04.toByte
+    override val opcode = 0x04.toByte
     override val opaque = 0x0
-    override val cas = None
+    override val cas    = None
     override val extras = None
-    override val key = Some(delkey.getBytes(keyEncoding))
-    override val value = None
+    override val key    = Some(delkey.getBytes(keyEncoding))
+    override val value  = None
   }
 }

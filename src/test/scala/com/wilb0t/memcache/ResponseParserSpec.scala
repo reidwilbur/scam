@@ -2,13 +2,12 @@ package com.wilb0t.memcache
 
 import java.io.{ByteArrayInputStream, InputStream}
 
-import com.wilb0t.memcache.Response.ResponseParser
 import org.junit.runner.RunWith
 import org.scalatest._
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class ResponseParserSpec extends FunSpec with Matchers with TryValues {
+class ResponseParserSpec extends FunSpec with Matchers {
   describe("toInt") {
     it("should return correct Int from byte array") {
       Response.toInt(Array(0x81,0x42,0x24,0x18).map{_.toByte}, 0) should equal (0x81422418)
@@ -35,7 +34,7 @@ class ResponseParserSpec extends FunSpec with Matchers with TryValues {
        0x04, 0x03, 0x02, 0x01
       ).map{_.toByte})
 
-      new ResponseParser {}.parseResponse(input) should be (List(Response.Success(None, 0x0807060504030201L, None)))
+      Response.Parser(input) should be ((0, Response.Success(None, 0x0807060504030201L, None)))
     }
   }
 }

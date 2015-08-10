@@ -2,6 +2,8 @@ package com.wilb0t.memcache
 
 import java.io.InputStream
 
+import scala.annotation.tailrec
+
 sealed trait Response
 
 object Response {
@@ -37,8 +39,19 @@ object Response {
       if (header.extLen + header.keyLen < header.bodyLen) Some(body.slice(header.extLen + header.keyLen, header.bodyLen)) else None
   }
 
-  trait ResponseParser {
-    def parseResponse(input: InputStream): List[Response] = {
+  case object Parser {
+    def apply(input: InputStream, finalResponseTag: Int): Map[Int, Response] = {
+      @tailrec
+      def parse(responses: Map[Int, Response]): Map[Int,Response] = {
+        Parser(input) match {
+          case p@(t, _) if t == finalResponseTag => responses + p
+          case p => parse(responses + p)
+        }
+      }
+      parse(Map())
+    }
+
+    def apply(input: InputStream): (Int, Response) = {
       val headerBytes = new Array[Byte](headerLen)
       val headerStatus = input.read(headerBytes, 0, headerLen)
       if (headerStatus != headerLen) throw new RuntimeException(s"Could not read packet header bytes, got $headerStatus expected $headerLen")
@@ -52,16 +65,16 @@ object Response {
       val packet = Packet(header, bodyBytes)
 
       header.status match {
-        case 0x00 => List(Success(packet.key.map{ new String(_, "UTF-8") }, header.cas, packet.value))
-        case 0x01 => List(KeyNotFound())
-        case 0x02 => List(KeyExists())
-        case 0x03 => List(ValueTooLarge())
-        case 0x04 => List(InvalidArguments())
-        case 0x05 => List(ItemNotStored())
-        case 0x06 => List(IncDecNonNumericValue())
-        case 0x81 => List(UnknownCommand())
-        case 0x82 => List(OutOfMemory())
-        case _    => List(UnknownServerResponse())
+        case 0x00 => (header.opaque, Success(packet.key.map{ new String(_, "UTF-8") }, header.cas, packet.value))
+        case 0x01 => (header.opaque, KeyNotFound())
+        case 0x02 => (header.opaque, KeyExists())
+        case 0x03 => (header.opaque, ValueTooLarge())
+        case 0x04 => (header.opaque, InvalidArguments())
+        case 0x05 => (header.opaque, ItemNotStored())
+        case 0x06 => (header.opaque, IncDecNonNumericValue())
+        case 0x81 => (header.opaque, UnknownCommand())
+        case 0x82 => (header.opaque, OutOfMemory())
+        case _    => (header.opaque, UnknownServerResponse())
       }
     }
   }
