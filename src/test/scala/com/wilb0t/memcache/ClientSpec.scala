@@ -109,7 +109,8 @@ class ClientSpec extends FunSpec with Matchers {
         client.setM(List(
           Command.Set("somekey1", 0x0, 3600, None, Array[Byte](0x1)),
           Command.Set("somekey2", 0x0, 3600, None, Array[Byte](0x2)),
-          Command.Set("somekey3", 0x0, 3600, None, Array[Byte](0x3))
+          Command.Set("somekey3", 0x0, 3600, None, Array[Byte](0x3)),
+          Command.Add("somekey3", 0x0, 3600, None, Array[Byte](0x4))
         )),
         Duration.Inf
       )
@@ -118,7 +119,8 @@ class ClientSpec extends FunSpec with Matchers {
         case List(
         Response.Success(Some("somekey1"), _, _),
         Response.Success(Some("somekey2"), _, _),
-        Response.Success(Some("somekey3"), _, _)
+        Response.Success(Some("somekey3"), _, _),
+        Response.KeyExists()
         ) =>
       }
 

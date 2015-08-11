@@ -8,14 +8,6 @@ sealed trait Response
 
 object Response {
 
-  def default(cmd: Command): Response =
-    cmd match {
-      case Command.GetQ(k,o) => Response.KeyNotFound()
-      case Command.SetQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
-      case Command.DeleteQ(k,o) => Response.Success(Some(k), 0x0, None)
-      case cmd => throw new RuntimeException(s"No default response for $cmd")
-    }
-
   def toInt(bytes: Array[Byte], ofs: Int): Int =
     ((bytes(ofs) << 24) & 0xff000000) | ((bytes(ofs+1) << 16) & 0xff0000) | ((bytes(ofs+2) << 8) & 0xff00) | (bytes(ofs+3) & 0xff)
 
@@ -25,7 +17,6 @@ object Response {
   val headerLen = 24
 
   protected case class PacketHeader(bytes: Array[Byte]) {
-
     val magic: Byte    = bytes(0)
     val opcode: Byte   = bytes(1)
     val keyLen: Int    = ((bytes(2) << 8) & 0xff00) | (bytes(3) & 0x00ff)

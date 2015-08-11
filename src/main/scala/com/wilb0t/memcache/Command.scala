@@ -59,12 +59,24 @@ object Command {
 
   val keyEncoding = Charset.forName("UTF-8")
 
-  def quiet(cmd: Command, opaque: Int): Command =
+  def quietCommand(cmd: Command, opaque: Int): Command =
     cmd match {
       case Get(k) => GetQ(k, opaque)
-      case Set(k, f, e, c, v) => SetQ(k, f, e, opaque, c, v)
+      case Set(k,f,e,c,v) => SetQ(k, f, e, opaque, c, v)
+      case Add(k,f,e,c,v) => AddQ(k, f, e, opaque, c, v)
+      case Replace(k,f,e,c,v) => ReplaceQ(k, f, e, opaque, c, v)
       case Delete(k) => DeleteQ(k, opaque)
       case _ => throw new RuntimeException(s"No quiet command for $cmd")
+    }
+
+  def defaultResponse(cmd: Command): Response =
+    cmd match {
+      case Command.GetQ(k,o) => Response.KeyNotFound()
+      case Command.SetQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
+      case Command.AddQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
+      case Command.ReplaceQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
+      case Command.DeleteQ(k,o) => Response.Success(Some(k), 0x0, None)
+      case cmd => throw new RuntimeException(s"No default response for $cmd")
     }
 
   trait Setter extends Command {
@@ -90,7 +102,7 @@ object Command {
     override val opcode = 0x01.toByte
   }
 
-  case class SetQ(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+  protected case class SetQ(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x11.toByte
   }
 
@@ -98,8 +110,16 @@ object Command {
     override val opcode = 0x02.toByte
   }
 
+  protected case class AddQ(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+    override val opcode = 0x12.toByte
+  }
+
   case class Replace(override val setkey: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x03.toByte
+  }
+
+  protected case class ReplaceQ(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+    override val opcode = 0x13.toByte
   }
 
   case class Get(getkey: String) extends Command {
@@ -112,7 +132,7 @@ object Command {
     def quietCommand(i: Int): Command = GetQ(getkey, i)
   }
 
-  case class GetQ(getkey: String, override val opaque: Int) extends Command {
+  protected case class GetQ(getkey: String, override val opaque: Int) extends Command {
     override val opcode = 0x09.toByte
     override val cas    = None
     override val extras = None
@@ -129,7 +149,7 @@ object Command {
     override val value  = None
   }
 
-  case class DeleteQ(delkey: String, override val opaque: Int) extends Command {
+  protected case class DeleteQ(delkey: String, override val opaque: Int) extends Command {
     override val opcode = 0x14.toByte
     override val cas    = None
     override val extras = None
