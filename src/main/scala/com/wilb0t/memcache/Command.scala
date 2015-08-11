@@ -59,6 +59,14 @@ object Command {
 
   val keyEncoding = Charset.forName("UTF-8")
 
+  def quiet(cmd: Command, opaque: Int): Command =
+    cmd match {
+      case Get(k) => GetQ(k, opaque)
+      case Set(k, f, e, c, v) => SetQ(k, f, e, opaque, c, v)
+      case Delete(k) => DeleteQ(k, opaque)
+      case _ => throw new RuntimeException(s"No quiet command for $cmd")
+    }
+
   trait Setter extends Command {
     def flags: Int
     def exptime: Int
@@ -78,7 +86,7 @@ object Command {
     override val value = Some(setvalue)
   }
 
-  case class Set(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+  case class Set(override val setkey: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x01.toByte
   }
 
@@ -101,6 +109,7 @@ object Command {
     override val extras = None
     override val key    = Some(getkey.getBytes(keyEncoding))
     override val value  = None
+    def quietCommand(i: Int): Command = GetQ(getkey, i)
   }
 
   case class GetQ(getkey: String, override val opaque: Int) extends Command {

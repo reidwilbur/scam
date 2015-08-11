@@ -17,7 +17,7 @@ class ClientSpec extends FunSpec with Matchers {
       val client = Client(address, 11211).get
 
       val setResponse = Await.result(
-        client.execute(Command.Set("somekey", 0, 3600, 0x0, None, Array[Byte](0x0, 0x1, 0x2, 0x3))),
+        client.execute(Command.Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3))),
         Duration.Inf)
 
       setResponse should matchPattern { case Response.Success(None, _, None) => }
@@ -74,9 +74,9 @@ class ClientSpec extends FunSpec with Matchers {
       client.execute(Command.Delete("somekey3"))
       client.execute(Command.Delete("somekey4"))
 
-      client.execute(Command.Set("somekey1", 0, 3600, 0x0, None, Array[Byte](0x1)))
-      client.execute(Command.Set("somekey2", 0, 3600, 0x0, None, Array[Byte](0x2)))
-      client.execute(Command.Set("somekey3", 0, 3600, 0x0, None, Array[Byte](0x3)))
+      client.execute(Command.Set("somekey1", 0, 3600, None, Array[Byte](0x1)))
+      client.execute(Command.Set("somekey2", 0, 3600, None, Array[Byte](0x2)))
+      client.execute(Command.Set("somekey3", 0, 3600, None, Array[Byte](0x3)))
 
       val getMResp = Await.result(
         client.getM(List(
@@ -107,9 +107,9 @@ class ClientSpec extends FunSpec with Matchers {
 
       val setMResp = Await.result(
         client.setM(List(
-          Command.Set("somekey1", 0x0, 3600, 0, None, Array[Byte](0x1)),
-          Command.Set("somekey2", 0x0, 3600, 0, None, Array[Byte](0x2)),
-          Command.Set("somekey3", 0x0, 3600, 0, None, Array[Byte](0x3))
+          Command.Set("somekey1", 0x0, 3600, None, Array[Byte](0x1)),
+          Command.Set("somekey2", 0x0, 3600, None, Array[Byte](0x2)),
+          Command.Set("somekey3", 0x0, 3600, None, Array[Byte](0x3))
         )),
         Duration.Inf
       )
@@ -130,9 +130,9 @@ class ClientSpec extends FunSpec with Matchers {
 
       val client = Client(address, 11211).get
 
-      Command.Set("somekey1", 0x0, 3600, 0, None, Array[Byte](0x1))
-      Command.Set("somekey2", 0x0, 3600, 0, None, Array[Byte](0x2))
-      Command.Set("somekey3", 0x0, 3600, 0, None, Array[Byte](0x3))
+      Command.Set("somekey1", 0x0, 3600, None, Array[Byte](0x1))
+      Command.Set("somekey2", 0x0, 3600, None, Array[Byte](0x2))
+      Command.Set("somekey3", 0x0, 3600, None, Array[Byte](0x3))
 
       val delMResp = Await.result(
         client.delM(List(
