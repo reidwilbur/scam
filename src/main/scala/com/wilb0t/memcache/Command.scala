@@ -6,10 +6,10 @@ import java.nio.charset.Charset
 sealed trait Command {
   def opcode: Byte
   def opaque: Int
-  def cas:    Option[Long]
-  def extras: Option[Array[Byte]]
-  def key:    Option[Array[Byte]]
-  def value:  Option[Array[Byte]]
+  def cas:      Option[Long]
+  def extras:   Option[Array[Byte]]
+  def keyBytes: Option[Array[Byte]]
+  def value:    Option[Array[Byte]]
 
   val magic: Byte = 0x80.toByte
 
@@ -17,7 +17,7 @@ sealed trait Command {
 
   def serialize: Array[Byte] = {
     val extLen = extras.map{_.length}.getOrElse(0)
-    val keyLen = key.map{_.length}.getOrElse(0)
+    val keyLen = keyBytes.map{_.length}.getOrElse(0)
     val valLen = value.map{_.length}.getOrElse(0)
     val bodyLen = extLen + keyLen + valLen
     val bytes = ByteBuffer.allocate(headerLen + bodyLen)
@@ -48,7 +48,7 @@ sealed trait Command {
       .put((_cas >>> 8).toByte)
       .put(_cas.toByte)
     extras.foreach { bytes.put }
-    key.foreach { bytes.put }
+    keyBytes.foreach { bytes.put }
     value.foreach { bytes.put }
 
     bytes.array()
@@ -66,6 +66,8 @@ object Command {
       case Add(k,f,e,c,v) => AddQ(k, f, e, opaque, c, v)
       case Replace(k,f,e,c,v) => ReplaceQ(k, f, e, opaque, c, v)
       case Delete(k) => DeleteQ(k, opaque)
+      case Increment(k,d,i,e) => IncrementQ(k,d,i,e)
+      case Decrement(k,d,i,e) => DecrementQ(k,d,i,e)
       case _ => throw new RuntimeException(s"No quiet command for $cmd")
     }
 
@@ -76,15 +78,17 @@ object Command {
       case Command.AddQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
       case Command.ReplaceQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
       case Command.DeleteQ(k,o) => Response.Success(Some(k), 0x0, None)
-      case cmd => throw new RuntimeException(s"No default response for $cmd")
+      case Command.IncrementQ(k,d,i,e) => Response.Success(Some(k), 0x0, None)
+      case Command.DecrementQ(k,d,i,e) => Response.Success(Some(k), 0x0, None)
+      case _ => throw new RuntimeException(s"No default response for $cmd")
     }
 
   trait Setter extends Command {
     def flags: Int
     def exptime: Int
-    def setkey: String
+    def key: String
     def setvalue: Array[Byte]
-    override val key = Some(setkey.getBytes(keyEncoding))
+    override val keyBytes = Some(key.getBytes(keyEncoding))
     override val opaque = 0x00
     override val extras = Some(Array(
       (flags >>> 24).toByte,
@@ -98,62 +102,61 @@ object Command {
     override val value = Some(setvalue)
   }
 
-  case class Set(override val setkey: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+  case class Set(override val key: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x01.toByte
   }
 
-  protected case class SetQ(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+  protected case class SetQ(override val key: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x11.toByte
   }
 
-  case class Add(override val setkey: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+  case class Add(override val key: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x02.toByte
   }
 
-  protected case class AddQ(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+  protected case class AddQ(override val key: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x12.toByte
   }
 
-  case class Replace(override val setkey: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+  case class Replace(override val key: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x03.toByte
   }
 
-  protected case class ReplaceQ(override val setkey: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+  protected case class ReplaceQ(override val key: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
     override val opcode = 0x13.toByte
   }
 
-  case class Get(getkey: String) extends Command {
+  case class Get(key: String) extends Command {
     override val opcode = 0x00.toByte
     override val opaque = 0x0
     override val cas    = None
     override val extras = None
-    override val key    = Some(getkey.getBytes(keyEncoding))
+    override val keyBytes = Some(key.getBytes(keyEncoding))
     override val value  = None
-    def quietCommand(i: Int): Command = GetQ(getkey, i)
   }
 
-  protected case class GetQ(getkey: String, override val opaque: Int) extends Command {
+  protected case class GetQ(key: String, override val opaque: Int) extends Command {
     override val opcode = 0x09.toByte
     override val cas    = None
     override val extras = None
-    override val key    = Some(getkey.getBytes(keyEncoding))
+    override val keyBytes = Some(key.getBytes(keyEncoding))
     override val value  = None
   }
 
-  case class Delete(delkey: String) extends Command {
+  case class Delete(key: String) extends Command {
     override val opcode = 0x04.toByte
     override val opaque = 0x0
     override val cas    = None
     override val extras = None
-    override val key    = Some(delkey.getBytes(keyEncoding))
+    override val keyBytes = Some(key.getBytes(keyEncoding))
     override val value  = None
   }
 
-  protected case class DeleteQ(delkey: String, override val opaque: Int) extends Command {
+  protected case class DeleteQ(key: String, override val opaque: Int) extends Command {
     override val opcode = 0x14.toByte
     override val cas    = None
     override val extras = None
-    override val key    = Some(delkey.getBytes(keyEncoding))
+    override val keyBytes = Some(key.getBytes(keyEncoding))
     override val value  = None
   }
 
@@ -161,7 +164,56 @@ object Command {
     override val opcode = 0x0a.toByte
     override val cas    = None
     override val extras = None
-    override val key    = None
+    override val keyBytes = None
     override val value  = None
+  }
+
+  trait IncDec extends Command {
+    override val opaque = 0x0
+    override val cas    = None
+    override val extras = Some(Array(
+      (delta >>> 56).toByte,
+      (delta >>> 48).toByte,
+      (delta >>> 40).toByte,
+      (delta >>> 32).toByte,
+      (delta >>> 24).toByte,
+      (delta >>> 16).toByte,
+      (delta >>>  8).toByte,
+      delta.toByte,
+      (initialVal >>> 56).toByte,
+      (initialVal >>> 48).toByte,
+      (initialVal >>> 40).toByte,
+      (initialVal >>> 32).toByte,
+      (initialVal >>> 24).toByte,
+      (initialVal >>> 16).toByte,
+      (initialVal >>>  8).toByte,
+      initialVal.toByte,
+      (exptime >>> 24).toByte,
+      (exptime >>> 16).toByte,
+      (exptime >>> 8).toByte,
+      exptime.toByte))
+    override val keyBytes = Some(key.getBytes("UTF-8"))
+    override val value = None
+
+    def key: String
+    def initialVal: Long
+    def exptime: Int
+    def delta: Long
+  }
+
+  case class Increment(key: String, delta: Long, initialVal: Long, exptime: Int) extends IncDec {
+    override val opcode = 0x05.toByte
+  }
+
+  case class IncrementQ(key: String, delta: Long, initialVal: Long, exptime: Int) extends IncDec {
+    override val opcode = 0x15.toByte
+  }
+
+  case class Decrement(key: String, delta: Long, initialVal: Long, exptime: Int) extends IncDec {
+    override val opcode = 0x06.toByte
+  }
+
+  case class DecrementQ(key: String, delta: Long, initialVal: Long, exptime: Int) extends IncDec {
+    override val opcode = 0x16.toByte
   }
 }

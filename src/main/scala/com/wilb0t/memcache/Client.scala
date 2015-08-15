@@ -11,6 +11,7 @@ trait Client {
   def getM(gets: List[Command.Get]) : Future[List[Response]]
   def setM(sets: List[Command.Setter]) : Future[List[Response]]
   def delM(dels: List[Command.Delete]) : Future[List[Response]]
+  def incDecM(incDecs: List[Command.IncDec]) : Future[List[Response]]
   def close(): Unit
 }
 
@@ -47,6 +48,8 @@ object Client {
         override def setM(sets: List[Command.Setter]) = executeM(sets)
 
         override def delM(dels: List[Command.Delete]) = executeM(dels)
+
+        override def incDecM(incDecs: List[Command.IncDec]) = executeM(incDecs)
 
         override def close(): Unit = {
           in.close()

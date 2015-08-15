@@ -61,6 +61,26 @@ class ClientSpec extends FunSpec with Matchers {
 
       getFailedResponse should matchPattern { case Response.KeyNotFound() => }
 
+      client.execute(Command.Delete("incKey"))
+
+      val incInitResponse = Await.result(
+        client.execute(Command.Increment("incKey", 0x35L, 0x0, 3600)),
+        Duration.Inf)
+
+      incInitResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0))) => }
+
+      val incResponse = Await.result(
+        client.execute(Command.Increment("incKey", 0x35L, 0x0, 3600)),
+        Duration.Inf)
+
+      incResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x35))) => }
+
+      val decResponse = Await.result(
+        client.execute(Command.Decrement("incKey", 0x01L, 0x0, 3600)),
+        Duration.Inf)
+
+      decResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x34))) => }
+
       client.close()
     }
 
@@ -154,6 +174,51 @@ class ClientSpec extends FunSpec with Matchers {
           Response.Success(Some("somekey3"), _, _)
         ) =>
       }
+
+      client.close()
+    }
+
+    it("should return a value for each element of an incDecM") {
+      val address = InetAddress.getByName("192.168.59.103")
+
+      val client = Client(address, 11211).get
+
+      client.delM(List(
+        Command.Delete("counter1"),
+        Command.Delete("counter2")
+      ))
+
+      val resp = Await.result(
+        client.incDecM(List(
+          Command.Increment("counter1", 0x1, 0x00, 3600),
+          Command.Increment("counter1", 0x1, 0x00, 3600),
+          Command.Decrement("counter1", 0x1, 0x00, 3600),
+          Command.Increment("counter2", 0x1, 0x10, 3600)
+        )),
+        Duration.Inf)
+
+      resp should matchPattern {
+        case List(
+          Response.Success(Some("counter1"), _, _),
+          Response.Success(Some("counter1"), _, _),
+          Response.Success(Some("counter1"), _, _),
+          Response.Success(Some("counter2"), _, _)
+        ) =>
+      }
+
+      val incResp = Await.result(
+        client.execute(Command.Increment("counter1", 0x1, 0x00, 3600)),
+        Duration.Inf
+      )
+
+      incResp should matchPattern { case Response.Success(_,_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1))) => }
+
+      val decResp = Await.result(
+        client.execute(Command.Decrement("counter2", 0x1, 0x00, 3600)),
+        Duration.Inf
+      )
+
+      decResp should matchPattern { case Response.Success(_,_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xf))) => }
 
       client.close()
     }
