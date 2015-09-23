@@ -82,6 +82,7 @@ object Response {
     val startTime = System.currentTimeMillis()
     val bytes = new Array[Byte](numBytes)
 
+    @tailrec
     def _read(offset: Int): Array[Byte] = {
       if (offset >= numBytes) {
         bytes
