@@ -3,6 +3,7 @@ package com.wilb0t.memcache
 import java.net.{Socket, InetAddress}
 import java.util.concurrent.Executors
 
+import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
@@ -28,7 +29,7 @@ object Client {
         override def execute(command: Command): Future[Response] = Future {
           out.write(command.serialize)
           out.flush()
-          Response.Parser(in)._2
+          Response.Parser(in)(Duration.Inf)._2
         }
 
         def executeM(commands: List[Command]): Future[List[Response]] =

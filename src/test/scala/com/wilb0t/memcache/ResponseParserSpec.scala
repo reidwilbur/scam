@@ -6,6 +6,8 @@ import org.junit.runner.RunWith
 import org.scalatest._
 import org.scalatest.junit.JUnitRunner
 
+import scala.concurrent.duration.Duration
+
 @RunWith(classOf[JUnitRunner])
 class ResponseParserSpec extends FunSpec with Matchers {
   describe("toInt") {
@@ -34,7 +36,7 @@ class ResponseParserSpec extends FunSpec with Matchers {
        0x04, 0x03, 0x02, 0x01
       ).map{_.toByte})
 
-      Response.Parser(input) should be ((0, Response.Success(None, 0x0807060504030201L, None)))
+      Response.Parser(input)(Duration.Inf) should be ((0, Response.Success(None, 0x0807060504030201L, None)))
     }
   }
 }
