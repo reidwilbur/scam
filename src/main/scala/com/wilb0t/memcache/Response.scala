@@ -5,7 +5,6 @@ import java.util.concurrent.{TimeoutException, TimeUnit}
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
-import scala.util.Try
 
 sealed trait Response
 
@@ -43,10 +42,10 @@ object Response {
   }
 
   case object Parser {
-    def apply(input: InputStream, finalResponseTag: Int): Map[Int, Response] = {
+    def apply(input: InputStream, finalResponseTag: Int)(timeout: Duration): Map[Int, Response] = {
       @tailrec
       def parse(responses: Map[Int, Response]): Map[Int,Response] = {
-        Parser(input)(Duration.Inf) match {
+        Parser(input)(timeout) match {
           case p@(t, _) if t == finalResponseTag => responses + p
           case p => parse(responses + p)
         }
@@ -56,13 +55,13 @@ object Response {
 
     def apply(input: InputStream)(timeout: Duration): (Int, Response) = {
       val startTime = System.currentTimeMillis()
-      val headerBytes = readWithTimeout(input, headerLen, timeout)
-      val header = if (headerBytes.isSuccess) PacketHeader(headerBytes.get) else throw headerBytes.failed.get
+      val headerBytes = readWithTimeout(input, headerLen)(timeout)
+      val header = PacketHeader(headerBytes)
 
       val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
       val bodyTimeout = (timeout - elapsed).max(Duration(0, TimeUnit.MILLISECONDS))
-      val bodyBytes = readWithTimeout(input, header.bodyLen, bodyTimeout)
-      val packet = if (bodyBytes.isSuccess) Packet(header, bodyBytes.get) else throw bodyBytes.failed.get
+      val bodyBytes = readWithTimeout(input, header.bodyLen)(bodyTimeout)
+      val packet = Packet(header, bodyBytes)
 
       header.status match {
         case 0x00 => (header.opaque, Success(packet.key.map{ new String(_, "UTF-8") }, header.cas, packet.value))
@@ -79,7 +78,7 @@ object Response {
     }
   }
 
-  def readWithTimeout(input: InputStream, numBytes: Int, duration: Duration): Try[Array[Byte]] = {
+  def readWithTimeout(input: InputStream, numBytes: Int)(timeout: Duration): Array[Byte] = {
     val startTime = System.currentTimeMillis()
     val bytes = new Array[Byte](numBytes)
 
@@ -89,22 +88,24 @@ object Response {
       } else {
         val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
         // TODO(reid): should try to flush input on read failure? may break confuse later commands
-        if (elapsed >= duration) throw new TimeoutException(s"Timed out reading $numBytes bytes after $duration")
+        if (elapsed >= timeout) throw new TimeoutException(s"Timed out reading $numBytes bytes after $timeout")
+
         val avail = input.available()
         if (avail > 0) {
           val bytesToRead = math.min(avail, bytes.length - offset)
           val read = input.read(bytes, offset, bytesToRead)
-          if (read == -1) throw new RuntimeException(s"Got end of stream, expected $numBytes bytes, read $offset bytes")
-          else _read(offset + read)
+
+          if (read == -1)
+            throw new RuntimeException(s"Got end of stream, expected $numBytes bytes, read $offset bytes")
+
+          _read(offset + read)
         } else {
           _read(offset)
         }
       }
     }
 
-    Try {
-      _read(0)
-    }
+    _read(0)
   }
 
   case class Success(key: Option[String], cas: Long, value: Option[Array[Byte]]) extends Response {

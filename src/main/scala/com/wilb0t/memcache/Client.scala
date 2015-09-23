@@ -8,11 +8,11 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 trait Client {
-  def execute(command:Command) : Future[Response]
-  def getM(gets: List[Command.Get]) : Future[List[Response]]
-  def setM(sets: List[Command.Setter]) : Future[List[Response]]
-  def delM(dels: List[Command.Delete]) : Future[List[Response]]
-  def incDecM(incDecs: List[Command.IncDec]) : Future[List[Response]]
+  def execute(command:Command)(implicit timeout: Duration) : Future[Response]
+  def getM(gets: List[Command.Get])(implicit timeout: Duration) : Future[List[Response]]
+  def setM(sets: List[Command.Setter])(implicit timeout: Duration) : Future[List[Response]]
+  def delM(dels: List[Command.Delete])(implicit timeout: Duration) : Future[List[Response]]
+  def incDecM(incDecs: List[Command.IncDec])(implicit timeout: Duration) : Future[List[Response]]
   def close(): Unit
 }
 
@@ -26,13 +26,13 @@ object Client {
 
         implicit val ec = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
-        override def execute(command: Command): Future[Response] = Future {
+        override def execute(command: Command)(implicit timeout: Duration): Future[Response] = Future {
           out.write(command.serialize)
           out.flush()
-          Response.Parser(in)(Duration.Inf)._2
+          Response.Parser(in)(timeout)._2
         }
 
-        def executeM(commands: List[Command]): Future[List[Response]] =
+        def executeM(commands: List[Command])(implicit timeout: Duration): Future[List[Response]] =
           Future {
             val quietCmds = commands.zipWithIndex.map { case (cmd, i) => Command.quietCommand(cmd, i) }
             val quietSize = quietCmds.size
@@ -40,17 +40,17 @@ object Client {
             //the Noop triggers any responses for the quiet commands
             out.write(Command.Noop(quietSize).serialize)
             out.flush()
-            val responses = Response.Parser(in, quietSize)
+            val responses = Response.Parser(in, quietSize)(timeout)
             quietCmds.map { cmd => responses.getOrElse(cmd.opaque, Command.defaultResponse(cmd)) }
           }
 
-        override def getM(gets: List[Command.Get]) = executeM(gets)
+        override def getM(gets: List[Command.Get])(implicit timeout: Duration) = executeM(gets)
 
-        override def setM(sets: List[Command.Setter]) = executeM(sets)
+        override def setM(sets: List[Command.Setter])(implicit timeout: Duration) = executeM(sets)
 
-        override def delM(dels: List[Command.Delete]) = executeM(dels)
+        override def delM(dels: List[Command.Delete])(implicit timeout: Duration) = executeM(dels)
 
-        override def incDecM(incDecs: List[Command.IncDec]) = executeM(incDecs)
+        override def incDecM(incDecs: List[Command.IncDec])(implicit timeout: Duration) = executeM(incDecs)
 
         override def close(): Unit = {
           in.close()

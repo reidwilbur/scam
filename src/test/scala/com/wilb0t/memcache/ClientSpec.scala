@@ -1,5 +1,7 @@
 package com.wilb0t.memcache
 
+import java.util.concurrent.TimeUnit
+
 import org.junit.runner.RunWith
 import org.scalatest._
 import org.scalatest.junit.JUnitRunner
@@ -15,6 +17,8 @@ class ClientSpec extends FunSpec with Matchers {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
+
+      implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
       val setResponse = Await.result(
         client.execute(Command.Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3))),
@@ -89,6 +93,8 @@ class ClientSpec extends FunSpec with Matchers {
 
       val client = Client(address, 11211).get
 
+      implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
+
       client.execute(Command.Delete("somekey1"))
       client.execute(Command.Delete("somekey2"))
       client.execute(Command.Delete("somekey3"))
@@ -125,6 +131,8 @@ class ClientSpec extends FunSpec with Matchers {
 
       val client = Client(address, 11211).get
 
+      implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
+
       val setMResp = Await.result(
         client.setM(List(
           Command.Set("somekey1", 0x0, 3600, None, Array[Byte](0x1)),
@@ -151,6 +159,8 @@ class ClientSpec extends FunSpec with Matchers {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
+
+      implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
       Command.Set("somekey1", 0x0, 3600, None, Array[Byte](0x1))
       Command.Set("somekey2", 0x0, 3600, None, Array[Byte](0x2))
@@ -182,6 +192,8 @@ class ClientSpec extends FunSpec with Matchers {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
+
+      implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
       client.delM(List(
         Command.Delete("counter1"),
