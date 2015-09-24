@@ -89,6 +89,7 @@ object Response {
       } else {
         val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
         // TODO(reid): should try to flush input on read failure? may break confuse later commands
+        // probably need to drop the connection since will be out of sync with server
         if (elapsed >= timeout) throw new TimeoutException(s"Timed out reading $numBytes bytes after $timeout")
 
         val avail = input.available()

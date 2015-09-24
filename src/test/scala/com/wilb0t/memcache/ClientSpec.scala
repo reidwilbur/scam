@@ -26,56 +26,56 @@ class ClientSpec extends FunSpec with Matchers {
       implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
       val setResponse = blockForResult(
-        client.execute(Command.Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3)))
+        client.execute(Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3)))
       )
       setResponse should matchPattern { case Response.Success(None, _, None) => }
 
       val getResponse = blockForResult(
-        client.execute(Command.Get("somekey"))
+        client.execute(Get("somekey"))
       )
       getResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x1,0x2,0x3))) => }
 
       val addResponse = blockForResult(
-        client.execute(Command.Add("somekey", 0, 3600, None, Array[Byte](0x4,0x5)))
+        client.execute(Add("somekey", 0, 3600, None, Array[Byte](0x4,0x5)))
       )
       addResponse should matchPattern{ case Response.KeyExists() => }
 
       val replaceResponse = blockForResult(
-        client.execute(Command.Replace("somekey", 0, 3600, None, Array[Byte](0x7,0x8)))
+        client.execute(Replace("somekey", 0, 3600, None, Array[Byte](0x7,0x8)))
       )
       replaceResponse should matchPattern { case Response.Success(None, _, None) => }
 
       val getReplacedResponse = blockForResult(
-        client.execute(Command.Get("somekey"))
+        client.execute(Get("somekey"))
       )
       getReplacedResponse should matchPattern { case Response.Success(_, _, Some(Array(0x7,0x8))) => }
 
       val deleteResponse = blockForResult(
-        client.execute(Command.Delete("somekey"))
+        client.execute(Delete("somekey"))
       )
       deleteResponse should matchPattern { case Response.Success(None, _, None) => }
 
       val getFailedResponse = blockForResult(
-        client.execute(Command.Get("somekey"))
+        client.execute(Get("somekey"))
       )
       getFailedResponse should matchPattern { case Response.KeyNotFound() => }
 
-      client.execute(Command.Delete("incKey"))
+      client.execute(Delete("incKey"))
 
       val incInitResponse = blockForResult(
-        client.execute(Command.Increment("incKey", 0x35L, 0x0, 3600))
+        client.execute(Increment("incKey", 0x35L, 0x0, 3600))
       )
 
       incInitResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0))) => }
 
       val incResponse = blockForResult(
-        client.execute(Command.Increment("incKey", 0x35L, 0x0, 3600))
+        client.execute(Increment("incKey", 0x35L, 0x0, 3600))
       )
 
       incResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x35))) => }
 
       val decResponse = blockForResult(
-        client.execute(Command.Decrement("incKey", 0x01L, 0x0, 3600))
+        client.execute(Decrement("incKey", 0x01L, 0x0, 3600))
       )
       decResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x34))) => }
 
@@ -89,21 +89,21 @@ class ClientSpec extends FunSpec with Matchers {
 
       implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
-      client.execute(Command.Delete("somekey1"))
-      client.execute(Command.Delete("somekey2"))
-      client.execute(Command.Delete("somekey3"))
-      client.execute(Command.Delete("somekey4"))
+      client.execute(Delete("somekey1"))
+      client.execute(Delete("somekey2"))
+      client.execute(Delete("somekey3"))
+      client.execute(Delete("somekey4"))
 
-      client.execute(Command.Set("somekey1", 0, 3600, None, Array[Byte](0x1)))
-      client.execute(Command.Set("somekey2", 0, 3600, None, Array[Byte](0x2)))
-      client.execute(Command.Set("somekey3", 0, 3600, None, Array[Byte](0x3)))
+      client.execute(Set("somekey1", 0, 3600, None, Array[Byte](0x1)))
+      client.execute(Set("somekey2", 0, 3600, None, Array[Byte](0x2)))
+      client.execute(Set("somekey3", 0, 3600, None, Array[Byte](0x3)))
 
       val getMResp = blockForResult(
         client.getM(List(
-          Command.Get("somekey4"),
-          Command.Get("somekey2"),
-          Command.Get("somekey3"),
-          Command.Get("somekey1")
+          Get("somekey4"),
+          Get("somekey2"),
+          Get("somekey3"),
+          Get("somekey1")
         ))
       )
 
@@ -128,10 +128,10 @@ class ClientSpec extends FunSpec with Matchers {
 
       val setMResp = blockForResult(
         client.setM(List(
-          Command.Set("somekey1", 0x0, 3600, None, Array[Byte](0x1)),
-          Command.Set("somekey2", 0x0, 3600, None, Array[Byte](0x2)),
-          Command.Set("somekey3", 0x0, 3600, None, Array[Byte](0x3)),
-          Command.Add("somekey3", 0x0, 3600, None, Array[Byte](0x4))
+          Set("somekey1", 0x0, 3600, None, Array[Byte](0x1)),
+          Set("somekey2", 0x0, 3600, None, Array[Byte](0x2)),
+          Set("somekey3", 0x0, 3600, None, Array[Byte](0x3)),
+          Add("somekey3", 0x0, 3600, None, Array[Byte](0x4))
         ))
       )
 
@@ -154,16 +154,16 @@ class ClientSpec extends FunSpec with Matchers {
 
       implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
-      Command.Set("somekey1", 0x0, 3600, None, Array[Byte](0x1))
-      Command.Set("somekey2", 0x0, 3600, None, Array[Byte](0x2))
-      Command.Set("somekey3", 0x0, 3600, None, Array[Byte](0x3))
+      Set("somekey1", 0x0, 3600, None, Array[Byte](0x1))
+      Set("somekey2", 0x0, 3600, None, Array[Byte](0x2))
+      Set("somekey3", 0x0, 3600, None, Array[Byte](0x3))
 
       val delMResp = blockForResult(
         client.delM(List(
-          Command.Delete("somekey2"),
-          Command.Delete("somekey1"),
-          Command.Delete("doesntexist"),
-          Command.Delete("somekey3")
+          Delete("somekey2"),
+          Delete("somekey1"),
+          Delete("doesntexist"),
+          Delete("somekey3")
         ))
       )
 
@@ -187,16 +187,16 @@ class ClientSpec extends FunSpec with Matchers {
       implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
       client.delM(List(
-        Command.Delete("counter1"),
-        Command.Delete("counter2")
+        Delete("counter1"),
+        Delete("counter2")
       ))
 
       val resp = blockForResult(
         client.incDecM(List(
-          Command.Increment("counter1", 0x1, 0x00, 3600),
-          Command.Increment("counter1", 0x1, 0x00, 3600),
-          Command.Decrement("counter1", 0x1, 0x00, 3600),
-          Command.Increment("counter2", 0x1, 0x10, 3600)
+          Increment("counter1", 0x1, 0x00, 3600),
+          Increment("counter1", 0x1, 0x00, 3600),
+          Decrement("counter1", 0x1, 0x00, 3600),
+          Increment("counter2", 0x1, 0x10, 3600)
         ))
       )
 
@@ -210,13 +210,13 @@ class ClientSpec extends FunSpec with Matchers {
       }
 
       val incResp = blockForResult(
-        client.execute(Command.Increment("counter1", 0x1, 0x00, 3600))
+        client.execute(Increment("counter1", 0x1, 0x00, 3600))
       )
 
       incResp should matchPattern { case Response.Success(_,_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1))) => }
 
       val decResp = blockForResult(
-        client.execute(Command.Decrement("counter2", 0x1, 0x00, 3600))
+        client.execute(Decrement("counter2", 0x1, 0x00, 3600))
       )
 
       decResp should matchPattern { case Response.Success(_,_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xf))) => }
