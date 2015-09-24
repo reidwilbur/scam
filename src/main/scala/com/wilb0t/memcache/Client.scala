@@ -29,19 +29,21 @@ object Client {
         override def execute(command: Command)(implicit timeout: Duration): Future[Response] = Future {
           out.write(command)
           out.flush()
-          Response.Parser(in)(timeout)._2
+          Response.Parser(in, command)(timeout)
         }
 
         def executeM(commands: List[Command])(implicit timeout: Duration): Future[List[Response]] =
           Future {
-            val quietCmds = commands.zipWithIndex.map { case (cmd, i) => Command.quietCommand(cmd, i) }
+            val quietCmds = commands.zipWithIndex.map{ case (cmd, i) => (Command.quietCommand(cmd, i), i) }
+            val quietCmdsMap = quietCmds.foldLeft(Map[Int,Command]()) { case (map, (cmd, i)) => map + ((i, cmd)) }
             val quietSize = quietCmds.size
-            quietCmds.foreach { cmd => out.write(cmd) }
-            //the Noop triggers any responses for the quiet commands
+            quietCmds.foreach { case (cmd, i) => out.write(cmd) }
+            //the Noop triggers any responses for the quiet commands and guarantees at least 1 response
+            //so the response parser doesn't time out
             out.write(Noop(quietSize))
             out.flush()
-            val responses = Response.Parser(in, quietSize)(timeout)
-            quietCmds.map { cmd => responses.getOrElse(cmd.opaque, Command.defaultResponse(cmd)) }
+            val responses = Response.Parser(in, quietSize, quietCmdsMap)(timeout)
+            quietCmds.map { case (cmd, _) => responses.getOrElse(cmd.opaque, Command.defaultResponse(cmd)) }
           }
 
         override def getM(gets: List[Get])(implicit timeout: Duration) = executeM(gets)

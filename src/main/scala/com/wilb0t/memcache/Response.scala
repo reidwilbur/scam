@@ -42,43 +42,82 @@ object Response {
   }
 
   case object Parser {
-    def apply(input: InputStream, finalResponseTag: Int)(timeout: Duration): Map[Int, Response] = {
+    /**
+     * Returns map of Int to Response corresponding to the input Commands.  Note that the server may not return
+     * responses for all commands (quiet commands), so there is no guarantee that the size of the response map
+     * will match the input command map.
+     *
+     * @param input InputStream connected to memcached server
+     * @param finalResponseTag indicates the opaque value to expect for the final packet in response pipeline.
+     *                         The final Command must have been a non-quiet command to ensure the server will send at
+     *                         least 1 response.  Otherwise this method will timeout waiting for server responses that
+     *                         may never come.
+     * @param commands Map of opaque/tag to Command, commands must have already been sent to server
+     * @param timeout maximum time to wait for all input bytes to arrive and be processed
+     * @return Map[Int,Response]
+     */
+    def apply(input: InputStream, finalResponseTag: Int, commands: Map[Int, Command])(timeout: Duration): Map[Int, Response] = {
       @tailrec
-      def parse(responses: Map[Int, Response]): Map[Int,Response] = {
-        Parser(input)(timeout) match {
-          case p@(t, _) if t == finalResponseTag => responses + p
-          case p => parse(responses + p)
+      def _parse(responses: Map[Int, Response]): Map[Int,Response] = {
+        val packet = read(input)(timeout)
+        packet match {
+          case p if p.header.opaque == finalResponseTag =>
+            commands.get(p.header.opaque).map{
+              cmd => responses + ((p.header.opaque, toResponse(cmd, p)))
+            }.getOrElse(responses)
+          case p =>
+            val resps = commands.get(p.header.opaque).map{
+              cmd => responses + ((p.header.opaque, toResponse(cmd, p)))
+            }.getOrElse(responses)
+            _parse(resps)
         }
       }
-      parse(Map())
+      _parse(Map())
     }
 
-    def apply(input: InputStream)(timeout: Duration): (Int, Response) = {
-      val startTime = System.currentTimeMillis()
-      val headerBytes = readWithTimeout(input, headerLen)(timeout)
-      val header = PacketHeader(headerBytes)
+    /**
+     * Reads the input stream and returns a Response for the Command.  Throws a TimeoutException if unable to read
+     * enough bytes in the given timeout Duration.
+     *
+     * This will always timeout if used to read the response of a quiet command that has no server response.
+     *
+     * @param input input stream connected to memcached server
+     * @param cmd last command that was sent to server
+     * @param timeout maximum time to wait for all input bytes to arrive and be processed
+     * @return Response
+     */
+    def apply(input: InputStream, cmd: Command)(timeout: Duration): Response =
+      toResponse(cmd, read(input)(timeout))
+  }
 
-      val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
-      val bodyTimeout = (timeout - elapsed).max(Duration(0, TimeUnit.MILLISECONDS))
-      val bodyBytes = readWithTimeout(input, header.bodyLen)(bodyTimeout)
-      val packet = Packet(header, bodyBytes)
-
-      header.status match {
-        case 0x00 => (header.opaque, Success(packet.key.map{ new String(_, "UTF-8") }, header.cas, packet.value))
-        case 0x01 => (header.opaque, KeyNotFound())
-        case 0x02 => (header.opaque, KeyExists())
-        case 0x03 => (header.opaque, ValueTooLarge())
-        case 0x04 => (header.opaque, InvalidArguments())
-        case 0x05 => (header.opaque, ItemNotStored())
-        case 0x06 => (header.opaque, IncDecNonNumericValue())
-        case 0x81 => (header.opaque, UnknownCommand())
-        case 0x82 => (header.opaque, OutOfMemory())
-        case _    => (header.opaque, UnknownServerResponse())
-      }
+  def toResponse(cmd: Command, packet: Packet): Response = {
+    val header = packet.header
+    header.status match {
+      case 0x00 => Success(cmd.keyBytes.map{ new String(_, cmd.keyEncoding) }, header.cas, packet.value.orElse(cmd.value))
+      case 0x01 => KeyNotFound(cmd.keyBytes.map{ new String(_, cmd.keyEncoding) })
+      case 0x02 => KeyExists(cmd.keyBytes.map{ new String(_, cmd.keyEncoding)} )
+      case 0x03 => ValueTooLarge
+      case 0x04 => InvalidArguments
+      case 0x05 => ItemNotStored
+      case 0x06 => IncDecNonNumericValue
+      case 0x81 => UnknownCommand
+      case 0x82 => OutOfMemory
+      case _    => UnknownServerResponse
     }
   }
 
-  def readWithTimeout(input: InputStream, numBytes: Int)(timeout: Duration): Array[Byte] = {
+  def read(input: InputStream)(timeout: Duration): Packet = {
+    val startTime = System.currentTimeMillis()
+    val headerBytes = read(input, headerLen)(timeout)
+    val header = PacketHeader(headerBytes)
+
+    val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
+    val bodyTimeout = (timeout - elapsed).max(Duration(0, TimeUnit.MILLISECONDS))
+    val bodyBytes = read(input, header.bodyLen)(bodyTimeout)
+    Packet(header, bodyBytes)
+  }
+
+  def read(input: InputStream, numBytes: Int)(timeout: Duration): Array[Byte] = {
     val startTime = System.currentTimeMillis()
     val bytes = new Array[Byte](numBytes)
 
@@ -88,7 +127,7 @@ object Response {
         bytes
       } else {
         val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
-        // TODO(reid): should try to flush input on read failure? may break confuse later commands
+        // TODO(reid): should try to flush input on read failure? may break/confuse later commands
         // probably need to drop the connection since will be out of sync with server
         if (elapsed >= timeout) throw new TimeoutException(s"Timed out reading $numBytes bytes after $timeout")
 
@@ -110,40 +149,23 @@ object Response {
     _read(0)
   }
 
-  case class Success(key: Option[String], cas: Long, value: Option[Array[Byte]]) extends Response {
-  }
+  case class Success(key: Option[String], cas: Long, value: Option[Array[Byte]]) extends Response
 
-  case class KeyNotFound() extends Response {
-  }
+  case class KeyNotFound(key: Option[String]) extends Response
 
-  case class KeyExists() extends Response {
-  }
+  case class KeyExists(key: Option[String]) extends Response
 
-  case class ValueTooLarge() extends Response {
+  case object ValueTooLarge extends Response
 
-  }
+  case object InvalidArguments extends Response
 
-  case class InvalidArguments() extends Response {
+  case object ItemNotStored extends Response
 
-  }
+  case object IncDecNonNumericValue extends Response
 
-  case class ItemNotStored() extends Response {
+  case object UnknownCommand extends Response
 
-  }
+  case object OutOfMemory extends Response
 
-  case class IncDecNonNumericValue() extends Response {
-
-  }
-
-  case class UnknownCommand() extends Response {
-
-  }
-
-  case class OutOfMemory() extends Response {
-
-  }
-
-  case class UnknownServerResponse() extends Response {
-
-  }
+  case object UnknownServerResponse extends Response
 }

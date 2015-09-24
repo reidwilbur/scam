@@ -13,8 +13,11 @@ import scala.concurrent.{Awaitable, Await}
 @RunWith(classOf[JUnitRunner])
 class ClientSpec extends FunSpec with Matchers {
 
+  // TODO(reid): these are actually integration tests since they require a live memcached server
+  // should update maven to spin one up and put this test in a separate goal
+
   def blockForResult[T](f: Awaitable[T]): T = {
-    Await.result(f, Duration.Inf)
+    Await.result(f, Duration(100, TimeUnit.MILLISECONDS))
   }
 
   describe("A Client") {
@@ -23,61 +26,59 @@ class ClientSpec extends FunSpec with Matchers {
 
       val client = Client(address, 11211).get
 
-      implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
+      implicit val timeout = Duration(10, TimeUnit.MILLISECONDS)
 
       val setResponse = blockForResult(
         client.execute(Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3)))
       )
-      setResponse should matchPattern { case Response.Success(None, _, None) => }
+      setResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x0,0x01,0x2,0x3))) => }
 
       val getResponse = blockForResult(
         client.execute(Get("somekey"))
       )
-      getResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x1,0x2,0x3))) => }
+      getResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x0,0x1,0x2,0x3))) => }
 
       val addResponse = blockForResult(
         client.execute(Add("somekey", 0, 3600, None, Array[Byte](0x4,0x5)))
       )
-      addResponse should matchPattern{ case Response.KeyExists() => }
+      addResponse should matchPattern{ case Response.KeyExists(Some("somekey")) => }
 
       val replaceResponse = blockForResult(
         client.execute(Replace("somekey", 0, 3600, None, Array[Byte](0x7,0x8)))
       )
-      replaceResponse should matchPattern { case Response.Success(None, _, None) => }
+      replaceResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
 
       val getReplacedResponse = blockForResult(
         client.execute(Get("somekey"))
       )
-      getReplacedResponse should matchPattern { case Response.Success(_, _, Some(Array(0x7,0x8))) => }
+      getReplacedResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
 
       val deleteResponse = blockForResult(
         client.execute(Delete("somekey"))
       )
-      deleteResponse should matchPattern { case Response.Success(None, _, None) => }
+      deleteResponse should matchPattern { case Response.Success(Some("somekey"), _, None) => }
 
       val getFailedResponse = blockForResult(
         client.execute(Get("somekey"))
       )
-      getFailedResponse should matchPattern { case Response.KeyNotFound() => }
+      getFailedResponse should matchPattern { case Response.KeyNotFound(Some("somekey")) => }
 
       client.execute(Delete("incKey"))
 
       val incInitResponse = blockForResult(
         client.execute(Increment("incKey", 0x35L, 0x0, 3600))
       )
-
-      incInitResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0))) => }
+      incInitResponse should matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0))) => }
 
       val incResponse = blockForResult(
         client.execute(Increment("incKey", 0x35L, 0x0, 3600))
       )
-
-      incResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x35))) => }
+      incResponse should matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x35))) => }
 
       val decResponse = blockForResult(
         client.execute(Decrement("incKey", 0x01L, 0x0, 3600))
       )
-      decResponse should matchPattern { case Response.Success(_, _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x34))) => }
+      decResponse should matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x34))) => }
 
       client.close()
     }
@@ -109,10 +110,10 @@ class ClientSpec extends FunSpec with Matchers {
 
       getMResp should matchPattern {
         case List(
-          Response.KeyNotFound(),
-          Response.Success(_, _, Some(Array(0x2))),
-          Response.Success(_, _, Some(Array(0x3))),
-          Response.Success(_, _, Some(Array(0x1)))
+          Response.KeyNotFound(Some("somekey4")),
+          Response.Success(Some("somekey2"), _, Some(Array(0x2))),
+          Response.Success(Some("somekey3"), _, Some(Array(0x3))),
+          Response.Success(Some("somekey1"), _, Some(Array(0x1)))
         ) =>
       }
 
@@ -140,7 +141,7 @@ class ClientSpec extends FunSpec with Matchers {
         Response.Success(Some("somekey1"), _, _),
         Response.Success(Some("somekey2"), _, _),
         Response.Success(Some("somekey3"), _, _),
-        Response.KeyExists()
+        Response.KeyExists(Some("somekey3"))
         ) =>
       }
 
@@ -171,7 +172,7 @@ class ClientSpec extends FunSpec with Matchers {
         case List(
           Response.Success(Some("somekey2"), _, _),
           Response.Success(Some("somekey1"), _, _),
-          Response.KeyNotFound(),
+          Response.KeyNotFound(Some("doesntexist")),
           Response.Success(Some("somekey3"), _, _)
         ) =>
       }

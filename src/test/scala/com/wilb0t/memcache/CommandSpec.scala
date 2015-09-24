@@ -7,7 +7,7 @@ import org.scalatest.{Matchers, FunSpec}
 @RunWith(classOf[JUnitRunner])
 class CommandSpec extends FunSpec with Matchers {
 
-  implicit def toByteArray(bytes: List[Int]): Array[Byte] = bytes.map{_.toByte}.toArray
+  implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
 
   describe("Opcode") {
     it("should be correct for Get command") {
@@ -19,27 +19,27 @@ class CommandSpec extends FunSpec with Matchers {
     }
 
     it("should be correct for Set command") {
-      Command.toBytes(Set("key", 0x0, 0x0, None, List(0x0))).apply(1) should be (0x01)
+      Command.toBytes(Set("key", 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x01)
     }
 
     it("should be correct for SetQ command") {
-      Command.toBytes(SetQ("key", 0x0, 0x0, 0x0, None, List(0x0))).apply(1) should be (0x11)
+      Command.toBytes(SetQ("key", 0x0, 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x11)
     }
 
     it("should be correct for Add command") {
-      Command.toBytes(Add("key", 0x0, 0x0, None, List(0x0))).apply(1) should be (0x02)
+      Command.toBytes(Add("key", 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x02)
     }
 
     it("should be correct for AddQ command") {
-      Command.toBytes(AddQ("key", 0x0, 0x0, 0x0, None, List(0x0))).apply(1) should be (0x12)
+      Command.toBytes(AddQ("key", 0x0, 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x12)
     }
 
     it("should be correct for Replace command") {
-      Command.toBytes(Replace("key", 0x0, 0x0, None, List(0x0))).apply(1) should be (0x03)
+      Command.toBytes(Replace("key", 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x03)
     }
 
     it("should be correct for ReplaceQ command") {
-      Command.toBytes(ReplaceQ("key", 0x0, 0x0, 0x0, None, List(0x0))).apply(1) should be (0x13)
+      Command.toBytes(ReplaceQ("key", 0x0, 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x13)
     }
 
     it("should be correct for Delete command") {
@@ -73,11 +73,11 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("A Setter Command") {
     it("should serialize correctly") {
-      val cmd = Set("key", 0xffeeddcc, 0xbbaa9988, Some(0xffeeddccbbaa9988L), List(0xff, 0xee, 0xdd, 0xcc))
+      val cmd = Set("key", 0xffeeddcc, 0xbbaa9988, Some(0xffeeddccbbaa9988L), Array(0xff, 0xee, 0xdd, 0xcc))
 
       val bytes = Command.toBytes(cmd)
 
-      bytes should be (toByteArray(List(
+      bytes should be (toByteArray(Array(
         0x80,                   //magic
         0x01,                   //opcode
         0x00, 0x03,             //keylen
@@ -96,11 +96,11 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("A Quiet Setter Command") {
     it("should serialize correctly") {
-      val cmd = SetQ("key", 0xffeeddcc, 0xbbaa9988, 0x11223344, Some(0xffeeddccbbaa9988L), List(0xff, 0xee, 0xdd, 0xcc))
+      val cmd = SetQ("key", 0xffeeddcc, 0xbbaa9988, 0x11223344, Some(0xffeeddccbbaa9988L), Array(0xff, 0xee, 0xdd, 0xcc))
 
       val bytes = Command.toBytes(cmd)
 
-      bytes should be (toByteArray(List(
+      bytes should be (toByteArray(Array(
         0x80,                   //magic
         0x11,                   //opcode
         0x00, 0x03,             //keylen
@@ -123,7 +123,7 @@ class CommandSpec extends FunSpec with Matchers {
 
       val bytes = Command.toBytes(cmd)
 
-      bytes should be (toByteArray(List(
+      bytes should be (toByteArray(Array(
         0x80,                   //magic
         0x00,                   //opcode
         0x00, 0x03,             //keylen
@@ -143,7 +143,7 @@ class CommandSpec extends FunSpec with Matchers {
 
       val bytes = Command.toBytes(cmd)
 
-      bytes should be (toByteArray(List(
+      bytes should be (toByteArray(Array(
         0x80,                   //magic
         0x09,                   //opcode
         0x00, 0x03,             //keylen
@@ -163,7 +163,7 @@ class CommandSpec extends FunSpec with Matchers {
 
       val bytes = Command.toBytes(cmd)
 
-      bytes should be (toByteArray(List(
+      bytes should be (toByteArray(Array(
         0x80,                   //magic
         0x04,                   //opcode
         0x00, 0x03,             //keylen
@@ -183,7 +183,7 @@ class CommandSpec extends FunSpec with Matchers {
 
       val bytes = Command.toBytes(cmd)
 
-      bytes should be (toByteArray(List(
+      bytes should be (toByteArray(Array(
         0x80,                   //magic
         0x14,                   //opcode
         0x00, 0x03,             //keylen
@@ -203,7 +203,7 @@ class CommandSpec extends FunSpec with Matchers {
 
       val bytes = Command.toBytes(cmd)
 
-      bytes should be (toByteArray(List(
+      bytes should be (toByteArray(Array(
         0x80,                   //magic
         0x0a,                   //opcode
         0x00, 0x00,             //keylen
@@ -222,7 +222,7 @@ class CommandSpec extends FunSpec with Matchers {
 
       val bytes = Command.toBytes(cmd)
 
-      bytes should be (toByteArray(List(
+      bytes should be (toByteArray(Array(
         0x80,                   //magic
         0x05,                   //opcode
         0x00, 0x03,             //keylen

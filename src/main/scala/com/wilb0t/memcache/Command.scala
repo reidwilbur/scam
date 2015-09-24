@@ -75,7 +75,7 @@ object Command {
 
   def defaultResponse(cmd: Command): Response =
     cmd match {
-      case GetQ(k,o) => Response.KeyNotFound()
+      case GetQ(k,o) => Response.KeyNotFound(Some(k))
       case SetQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
       case AddQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
       case ReplaceQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
@@ -105,27 +105,60 @@ trait Setter extends Command {
   override val value = Some(setvalue)
 }
 
-case class Set(override val key: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+case class Set(override val key: String,
+               override val flags: Int,
+               override val exptime: Int,
+               override val cas: Option[Long],
+               setvalue: Array[Byte])
+  extends Setter {
   override val opcode = 0x01.toByte
 }
 
-protected case class SetQ(override val key: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+protected case class SetQ(override val key: String,
+                          override val flags: Int,
+                          override val exptime: Int,
+                          override val opaque: Int,
+                          override val cas: Option[Long],
+                          setvalue: Array[Byte])
+  extends Setter {
   override val opcode = 0x11.toByte
 }
 
-case class Add(override val key: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+case class Add(override val key: String,
+               override val flags: Int,
+               override val exptime: Int,
+               override val cas: Option[Long],
+               setvalue: Array[Byte])
+  extends Setter {
   override val opcode = 0x02.toByte
 }
 
-protected case class AddQ(override val key: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+protected case class AddQ(override val key: String,
+                          override val flags: Int,
+                          override val exptime: Int,
+                          override val opaque: Int,
+                          override val cas: Option[Long],
+                          setvalue: Array[Byte])
+  extends Setter {
   override val opcode = 0x12.toByte
 }
 
-case class Replace(override val key: String, override val flags: Int, override val exptime: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+case class Replace(override val key: String,
+                   override val flags: Int,
+                   override val exptime: Int,
+                   override val cas: Option[Long],
+                   setvalue: Array[Byte])
+  extends Setter {
   override val opcode = 0x03.toByte
 }
 
-protected case class ReplaceQ(override val key: String, override val flags: Int, override val exptime: Int, override val opaque: Int, override val cas: Option[Long], setvalue: Array[Byte]) extends Setter {
+protected case class ReplaceQ(override val key: String,
+                              override val flags: Int,
+                              override val exptime: Int,
+                              override val opaque: Int,
+                              override val cas: Option[Long],
+                              setvalue: Array[Byte])
+  extends Setter {
   override val opcode = 0x13.toByte
 }
 
@@ -208,7 +241,11 @@ case class Increment(key: String, delta: Long, initialVal: Long, exptime: Int) e
   override val opcode = 0x05.toByte
 }
 
-case class IncrementQ(key: String, delta: Long, initialVal: Long, exptime: Int, override val opaque: Int) extends IncDec {
+case class IncrementQ(key: String, delta: Long,
+                      initialVal: Long,
+                      exptime: Int,
+                      override val opaque: Int)
+  extends IncDec {
   override val opcode = 0x15.toByte
 }
 
@@ -216,7 +253,11 @@ case class Decrement(key: String, delta: Long, initialVal: Long, exptime: Int) e
   override val opcode = 0x06.toByte
 }
 
-case class DecrementQ(key: String, delta: Long, initialVal: Long, exptime: Int, override val opaque: Int) extends IncDec {
+case class DecrementQ(key: String, delta: Long,
+                      initialVal: Long,
+                      exptime: Int,
+                      override val opaque: Int)
+  extends IncDec {
   override val opcode = 0x16.toByte
 }
 
