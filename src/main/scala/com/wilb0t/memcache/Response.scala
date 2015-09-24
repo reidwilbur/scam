@@ -60,17 +60,15 @@ object Response {
       @tailrec
       def _parse(responses: Map[Int, Response]): Map[Int,Response] = {
         val packet = read(input)(timeout)
-        packet match {
-          case p if p.header.opaque == finalResponseTag =>
-            commands.get(p.header.opaque).map{
-              cmd => responses + ((p.header.opaque, toResponse(cmd, p)))
+
+        val responsesAcc = commands.get(packet.header.opaque).map{
+              cmd => responses + ((packet.header.opaque, toResponse(cmd, packet)))
             }.getOrElse(responses)
-          case p =>
-            val resps = commands.get(p.header.opaque).map{
-              cmd => responses + ((p.header.opaque, toResponse(cmd, p)))
-            }.getOrElse(responses)
-            _parse(resps)
-        }
+
+        if (packet.header.opaque == finalResponseTag)
+          responsesAcc
+        else
+          _parse(responsesAcc)
       }
       _parse(Map())
     }
