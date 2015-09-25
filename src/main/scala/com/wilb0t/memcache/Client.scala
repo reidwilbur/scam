@@ -23,26 +23,27 @@ object Client {
         val socket = new Socket(address, port)
         val in = socket.getInputStream
         val out = socket.getOutputStream
+        val responseReader = Response.Reader()
 
         implicit val ec = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
         override def execute(command: Command)(implicit timeout: Duration): Future[Response] = Future {
           out.write(command)
           out.flush()
-          Response.Parser(in, command)(timeout)
+          responseReader.read(in, command)(timeout)
         }
 
         def executeM(commands: List[Command])(implicit timeout: Duration): Future[List[Response]] =
           Future {
             val quietCmds = commands.zipWithIndex.map{ case (cmd, i) => (Command.quietCommand(cmd, i), i) }
             val quietCmdsMap = quietCmds.foldLeft(Map[Int,Command]()) { case (map, (cmd, i)) => map + ((i, cmd)) }
-            val quietSize = quietCmds.size
+            val finalCommandTag = quietCmds.size
             quietCmds.foreach { case (cmd, i) => out.write(cmd) }
             //the Noop triggers any responses for the quiet commands and guarantees at least 1 response
             //so the response parser doesn't time out
-            out.write(Command.Noop(quietSize))
+            out.write(Command.Noop(finalCommandTag))
             out.flush()
-            val responses = Response.Parser(in, quietSize, quietCmdsMap)(timeout)
+            val responses = responseReader.read(in, finalCommandTag, quietCmdsMap)(timeout)
             quietCmds.map { case (cmd, _) => responses.getOrElse(cmd.opaque, Command.defaultResponse(cmd)) }
           }
 

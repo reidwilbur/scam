@@ -33,26 +33,30 @@ protected object Response {
 
   protected[memcache]
   def toInt(bytes: Array[Byte], ofs: Int): Int =
-    ((bytes(ofs) << 24) & 0xff000000) | ((bytes(ofs+1) << 16) & 0xff0000) | ((bytes(ofs+2) << 8) & 0xff00) | (bytes(ofs+3) & 0xff)
+    ((bytes(ofs) << 24) & 0xff000000) | ((bytes(ofs + 1) << 16) & 0xff0000) | ((bytes(ofs + 2) << 8) & 0xff00) | (bytes(ofs + 3) & 0xff)
 
   protected[memcache]
   def toLong(bytes: Array[Byte], ofs: Int): Long =
-    ((toInt(bytes, ofs).toLong << 32) & 0xffffffff00000000L) | (toInt(bytes, ofs+4) & 0x0ffffffffL)
+    ((toInt(bytes, ofs).toLong << 32) & 0xffffffff00000000L) | (toInt(bytes, ofs + 4) & 0x0ffffffffL)
 
   protected[memcache]
   val headerLen = 24
 
   protected
   case class PacketHeader(bytes: Array[Byte]) {
-    val magic: Byte    = bytes(0)
-    val opcode: Byte   = bytes(1)
-    val keyLen: Int    = ((bytes(2) << 8) & 0xff00) | (bytes(3) & 0x00ff)
-    val extLen: Int    = bytes(4) & 0xff
+    val magic: Byte = bytes(0)
+    val opcode: Byte = bytes(1)
+    val keyLen: Int = ((bytes(2) << 8) & 0xff00) | (bytes(3) & 0x00ff)
+    val extLen: Int = bytes(4) & 0xff
+
     def dataType: Byte = bytes(5)
-    val status: Int    = ((bytes(6) << 8) & 0xff00) | (bytes(7) & 0x00ff)
-    val bodyLen: Int   = toInt(bytes, 8)
-    def opaque: Int    = toInt(bytes, 12)
-    def cas: Long      = toLong(bytes, 16)
+
+    val status: Int = ((bytes(6) << 8) & 0xff00) | (bytes(7) & 0x00ff)
+    val bodyLen: Int = toInt(bytes, 8)
+
+    def opaque: Int = toInt(bytes, 12)
+
+    def cas: Long = toLong(bytes, 16)
   }
 
   protected case class Packet(header: PacketHeader, body: Array[Byte]) {
@@ -67,7 +71,16 @@ protected object Response {
   }
 
   protected[memcache]
-  case object Parser {
+  type ResponseBuilder = (Command, Packet) => Response
+
+  protected[memcache]
+  type ByteReader      = (InputStream, Int) => (Duration => Array[Byte])
+
+  protected[memcache]
+  type PacketReader    = InputStream => (Duration => Packet)
+
+  protected[memcache]
+  trait Reader {
     /**
      * Returns map of Int to Response corresponding to the input Commands.  Note that the server may not return
      * responses for all commands (quiet commands), so there is no guarantee that the size of the response map
@@ -82,21 +95,21 @@ protected object Response {
      * @param timeout maximum time to wait for all input bytes to arrive and be processed
      * @return Map[Int,Response]
      */
-    def apply(input: InputStream, finalResponseTag: Int, commands: Map[Int, Command])(timeout: Duration): Map[Int, Response] = {
+    def read(input: InputStream, finalResponseTag: Int, commands: Map[Int, Command])(timeout: Duration): Map[Int, Response] = {
       @tailrec
-      def _parse(responsesAcc: Map[Int, Response]): Map[Int,Response] = {
-        val packet = readPacket(timeout)(input)
+      def _read(responsesAcc: Map[Int, Response]): Map[Int, Response] = {
+        val packet = readPacket(input)(timeout)
 
-        val responses = commands.get(packet.header.opaque).map{
-          cmd => responsesAcc + ((packet.header.opaque, toResponse(cmd, packet)))
+        val responses = commands.get(packet.header.opaque).map {
+          cmd => responsesAcc + ((packet.header.opaque, buildResponse(cmd, packet)))
         }.getOrElse(responsesAcc)
 
         if (packet.header.opaque == finalResponseTag)
           responses
         else
-          _parse(responses)
+          _read(responses)
       }
-      _parse(Map())
+      _read(Map())
     }
 
     /**
@@ -106,14 +119,34 @@ protected object Response {
      * This will always timeout if used to read the response of a quiet command that has no server response.
      *
      * @param input input stream connected to memcached server
-     * @param cmd last command that was sent to server
+     * @param command last command that was sent to server
      * @param timeout maximum time to wait for all input bytes to arrive and be processed
      * @return Response
      */
-    def apply(input: InputStream, cmd: Command)(timeout: Duration): Response =
-      toResponse(cmd, readPacket(timeout)(input))
+    def read(input: InputStream, command: Command)(timeout: Duration): Response =
+      buildResponse(command, readPacket(input)(timeout))
 
-    def toResponse(cmd: Command, packet: Packet): Response = {
+    val readPacket: PacketReader
+
+    val buildResponse: ResponseBuilder
+  }
+
+  protected[memcache]
+  object Reader {
+
+    def apply(): Reader =
+      new Reader {
+         val readPacket = Reader.readPacket(readBytes _) _
+         val buildResponse = Reader.buildResponse _
+      }
+
+    def apply(packetReader: PacketReader, responseBuilder: ResponseBuilder): Reader =
+      new Reader {
+        val readPacket = packetReader
+        val buildResponse = responseBuilder
+      }
+
+    def buildResponse(cmd: Command, packet: Packet): Response = {
       val header = packet.header
       header.status match {
         case 0x00 =>
@@ -136,7 +169,7 @@ protected object Response {
       }
     }
 
-    def readPacket(timeout: Duration)(input: InputStream): Packet = {
+    def readPacket(readBytes: ByteReader)(input: InputStream)(timeout: Duration): Packet = {
       val startTime = System.currentTimeMillis()
       val headerBytes = readBytes(input, headerLen)(timeout)
       val header = PacketHeader(headerBytes)

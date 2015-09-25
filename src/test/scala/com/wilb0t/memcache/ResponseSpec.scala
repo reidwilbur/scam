@@ -3,6 +3,7 @@ package com.wilb0t.memcache
 import java.io._
 import java.util.concurrent.{TimeoutException, TimeUnit}
 
+import com.wilb0t.memcache.Response.ByteReader
 import org.junit.runner.RunWith
 import org.scalatest._
 import org.scalatest.junit.JUnitRunner
@@ -13,6 +14,15 @@ import scala.concurrent.duration.Duration
 class ResponseSpec extends FunSpec with MustMatchers {
 
   implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
+
+  val successSetResponse = toByteArray(Array(
+    0x81, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x08, 0x07, 0x06, 0x05,
+    0x04, 0x03, 0x02, 0x01
+  ))
 
   describe("Response") {
     describe("toInt") {
@@ -31,29 +41,14 @@ class ResponseSpec extends FunSpec with MustMatchers {
 
   def byteStream(bytes: Array[Byte]): InputStream = new ByteArrayInputStream(bytes)
 
-  describe("Response.Parser") {
-    describe("read") {
+  describe("Response.Reader") {
+    describe("readBytes") {
       implicit val timeout = Duration(1, TimeUnit.MILLISECONDS)
 
       it("must return correct bytes from InputStream") {
-        val input = byteStream(Array(
-          0x81, 0x01, 0x00, 0x00,
-          0x00, 0x00, 0x00, 0x00,
-          0x00, 0x00, 0x00, 0x00,
-          0x00, 0x00, 0x00, 0x00,
-          0x08, 0x07, 0x06, 0x05,
-          0x04, 0x03, 0x02, 0x01
-        ))
+        val input = byteStream(successSetResponse)
 
-        Response.Parser.readBytes(input, Response.headerLen)(timeout) must be
-          toByteArray(Array(
-            0x81, 0x01, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
-            0x08, 0x07, 0x06, 0x05,
-            0x04, 0x03, 0x02, 0x01
-          ))
+        Response.Reader.readBytes(input, Response.headerLen)(timeout) must be (successSetResponse)
 
         input.close()
       }
@@ -64,7 +59,7 @@ class ResponseSpec extends FunSpec with MustMatchers {
           0xff
         ))
 
-        Response.Parser.readBytes(input, 4)(timeout) must be (toByteArray(Array(0x81, 0x01, 0x02, 0x03)))
+        Response.Reader.readBytes(input, 4)(timeout) must be (toByteArray(Array(0x81, 0x01, 0x02, 0x03)))
 
         input.available() must be (1)
         input.read() must be (0xff)
@@ -76,7 +71,7 @@ class ResponseSpec extends FunSpec with MustMatchers {
         val input = byteStream(Array(0x81, 0x01, 0x00, 0x00))
 
         a [TimeoutException] must be thrownBy
-          Response.Parser.readBytes(input, Response.headerLen)(Duration(10, TimeUnit.MILLISECONDS))
+          Response.Reader.readBytes(input, Response.headerLen)(Duration(10, TimeUnit.MILLISECONDS))
 
         input.close()
       }
@@ -84,16 +79,9 @@ class ResponseSpec extends FunSpec with MustMatchers {
 
     it("must return Success for a success server packet") {
       val cmd = Command.Set("key", 0x0, 0x0, None, Array(0x0))
-      val input = byteStream(Array(
-        0x81, 0x01, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x08, 0x07, 0x06, 0x05,
-        0x04, 0x03, 0x02, 0x01
-      ))
+      val input = byteStream(successSetResponse)
 
-      val response = Response.Parser(input,cmd)(Duration(1, TimeUnit.MILLISECONDS))
+      val response = Response.Reader().read(input,cmd)(Duration(1, TimeUnit.MILLISECONDS))
       response must matchPattern {
         case Response.Success(Some("key"), 0x0807060504030201L, Some(Array(0x0))) => }
 
