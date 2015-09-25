@@ -31,7 +31,7 @@ class ResponseParserSpec extends FunSpec with Matchers {
 
   describe("ResponseParser") {
     it("should return Success for a success server packet") {
-      val cmd = Set("key", 0x0, 0x0, None, Array(0x0))
+      val cmd = Command.Set("key", 0x0, 0x0, None, Array(0x0))
       val input = byteStream(Array(
        0x81, 0x01, 0x00, 0x00,
        0x00, 0x00, 0x00, 0x00,
@@ -43,7 +43,7 @@ class ResponseParserSpec extends FunSpec with Matchers {
 
       val response = Response.Parser(input,cmd)(Duration(1, TimeUnit.MILLISECONDS))
       response should matchPattern {
-        case Response.Success(Some("key"), 0x0807060504030201L, Some(Array(0x0))) => }
+        case Success(Some("key"), 0x0807060504030201L, Some(Array(0x0))) => }
     }
   }
 }

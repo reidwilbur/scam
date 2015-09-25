@@ -8,11 +8,33 @@ import scala.concurrent.duration.Duration
 
 sealed trait Response
 
-object Response {
+case class Success(key: Option[String], cas: Long, value: Option[Array[Byte]]) extends Response
 
+case class KeyNotFound(key: Option[String]) extends Response
+
+case class KeyExists(key: Option[String]) extends Response
+
+case object ValueTooLarge extends Response
+
+case object InvalidArguments extends Response
+
+case object ItemNotStored extends Response
+
+case object IncDecNonNumericValue extends Response
+
+case object UnknownCommand extends Response
+
+case object OutOfMemory extends Response
+
+case object UnknownServerResponse extends Response
+
+protected object Response {
+
+  protected[memcache]
   def toInt(bytes: Array[Byte], ofs: Int): Int =
     ((bytes(ofs) << 24) & 0xff000000) | ((bytes(ofs+1) << 16) & 0xff0000) | ((bytes(ofs+2) << 8) & 0xff00) | (bytes(ofs+3) & 0xff)
 
+  protected[memcache]
   def toLong(bytes: Array[Byte], ofs: Int): Long =
     ((toInt(bytes, ofs).toLong << 32) & 0xffffffff00000000L) | (toInt(bytes, ofs+4) & 0x0ffffffffL)
 
@@ -61,14 +83,14 @@ object Response {
       def _parse(responses: Map[Int, Response]): Map[Int,Response] = {
         val packet = read(input)(timeout)
 
-        val responsesAcc = commands.get(packet.header.opaque).map{
+        val currResponses = commands.get(packet.header.opaque).map{
               cmd => responses + ((packet.header.opaque, toResponse(cmd, packet)))
             }.getOrElse(responses)
 
         if (packet.header.opaque == finalResponseTag)
-          responsesAcc
+          currResponses
         else
-          _parse(responsesAcc)
+          _parse(currResponses)
       }
       _parse(Map())
     }
@@ -91,9 +113,9 @@ object Response {
   def toResponse(cmd: Command, packet: Packet): Response = {
     val header = packet.header
     header.status match {
-      case 0x00 => Success(cmd.keyBytes.map{ new String(_, cmd.keyEncoding) }, header.cas, packet.value.orElse(cmd.value))
-      case 0x01 => KeyNotFound(cmd.keyBytes.map{ new String(_, cmd.keyEncoding) })
-      case 0x02 => KeyExists(cmd.keyBytes.map{ new String(_, cmd.keyEncoding)} )
+      case 0x00 => Success(cmd.keyBytes.map{ new String(_, Command.keyEncoding) }, header.cas, packet.value.orElse(cmd.value))
+      case 0x01 => KeyNotFound(cmd.keyBytes.map{ new String(_, Command.keyEncoding) })
+      case 0x02 => KeyExists(cmd.keyBytes.map{ new String(_, Command.keyEncoding)} )
       case 0x03 => ValueTooLarge
       case 0x04 => InvalidArguments
       case 0x05 => ItemNotStored
@@ -146,24 +168,5 @@ object Response {
 
     _read(0)
   }
-
-  case class Success(key: Option[String], cas: Long, value: Option[Array[Byte]]) extends Response
-
-  case class KeyNotFound(key: Option[String]) extends Response
-
-  case class KeyExists(key: Option[String]) extends Response
-
-  case object ValueTooLarge extends Response
-
-  case object InvalidArguments extends Response
-
-  case object ItemNotStored extends Response
-
-  case object IncDecNonNumericValue extends Response
-
-  case object UnknownCommand extends Response
-
-  case object OutOfMemory extends Response
-
-  case object UnknownServerResponse extends Response
 }
+

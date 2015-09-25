@@ -9,10 +9,10 @@ import scala.util.Try
 
 trait Client {
   def execute(command:Command)(implicit timeout: Duration) : Future[Response]
-  def getM(gets: List[Get])(implicit timeout: Duration) : Future[List[Response]]
-  def setM(sets: List[Setter])(implicit timeout: Duration) : Future[List[Response]]
-  def delM(dels: List[Delete])(implicit timeout: Duration) : Future[List[Response]]
-  def incDecM(incDecs: List[IncDec])(implicit timeout: Duration) : Future[List[Response]]
+  def getM(gets: List[Command.Get])(implicit timeout: Duration) : Future[List[Response]]
+  def setM(sets: List[Command.Setter])(implicit timeout: Duration) : Future[List[Response]]
+  def delM(dels: List[Command.Delete])(implicit timeout: Duration) : Future[List[Response]]
+  def incDecM(incDecs: List[Command.IncDec])(implicit timeout: Duration) : Future[List[Response]]
   def close(): Unit
 }
 
@@ -40,19 +40,19 @@ object Client {
             quietCmds.foreach { case (cmd, i) => out.write(cmd) }
             //the Noop triggers any responses for the quiet commands and guarantees at least 1 response
             //so the response parser doesn't time out
-            out.write(Noop(quietSize))
+            out.write(Command.Noop(quietSize))
             out.flush()
             val responses = Response.Parser(in, quietSize, quietCmdsMap)(timeout)
             quietCmds.map { case (cmd, _) => responses.getOrElse(cmd.opaque, Command.defaultResponse(cmd)) }
           }
 
-        override def getM(gets: List[Get])(implicit timeout: Duration) = executeM(gets)
+        override def getM(gets: List[Command.Get])(implicit timeout: Duration) = executeM(gets)
 
-        override def setM(sets: List[Setter])(implicit timeout: Duration) = executeM(sets)
+        override def setM(sets: List[Command.Setter])(implicit timeout: Duration) = executeM(sets)
 
-        override def delM(dels: List[Delete])(implicit timeout: Duration) = executeM(dels)
+        override def delM(dels: List[Command.Delete])(implicit timeout: Duration) = executeM(dels)
 
-        override def incDecM(incDecs: List[IncDec])(implicit timeout: Duration) = executeM(incDecs)
+        override def incDecM(incDecs: List[Command.IncDec])(implicit timeout: Duration) = executeM(incDecs)
 
         override def close(): Unit = {
           in.close()

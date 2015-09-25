@@ -11,69 +11,69 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("Opcode") {
     it("should be correct for Get command") {
-      Command.toBytes(Get("key")).apply(1) should be (0x00)
+      Command.toBytes(Command.Get("key")).apply(1) should be (0x00)
     }
 
     it("should be correct for GetQ command") {
-      Command.toBytes(GetQ("key", 0x0)).apply(1) should be (0x09)
+      Command.toBytes(Command.GetQ("key", 0x0)).apply(1) should be (0x09)
     }
 
     it("should be correct for Set command") {
-      Command.toBytes(Set("key", 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x01)
+      Command.toBytes(Command.Set("key", 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x01)
     }
 
     it("should be correct for SetQ command") {
-      Command.toBytes(SetQ("key", 0x0, 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x11)
+      Command.toBytes(Command.SetQ("key", 0x0, 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x11)
     }
 
     it("should be correct for Add command") {
-      Command.toBytes(Add("key", 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x02)
+      Command.toBytes(Command.Add("key", 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x02)
     }
 
     it("should be correct for AddQ command") {
-      Command.toBytes(AddQ("key", 0x0, 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x12)
+      Command.toBytes(Command.AddQ("key", 0x0, 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x12)
     }
 
     it("should be correct for Replace command") {
-      Command.toBytes(Replace("key", 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x03)
+      Command.toBytes(Command.Replace("key", 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x03)
     }
 
     it("should be correct for ReplaceQ command") {
-      Command.toBytes(ReplaceQ("key", 0x0, 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x13)
+      Command.toBytes(Command.ReplaceQ("key", 0x0, 0x0, 0x0, None, Array(0x0))).apply(1) should be (0x13)
     }
 
     it("should be correct for Delete command") {
-      Command.toBytes(Delete("key")).apply(1) should be (0x04)
+      Command.toBytes(Command.Delete("key")).apply(1) should be (0x04)
     }
 
     it("should be correct for DeleteQ command") {
-      Command.toBytes(DeleteQ("key", 0x0)).apply(1) should be (0x14)
+      Command.toBytes(Command.DeleteQ("key", 0x0)).apply(1) should be (0x14)
     }
 
     it("should be correct for Increment command") {
-      Command.toBytes(Increment("key", 0x0L, 0x0L, 0x0)).apply(1) should be (0x05)
+      Command.toBytes(Command.Increment("key", 0x0L, 0x0L, 0x0)).apply(1) should be (0x05)
     }
 
     it("should be correct for IncrementQ command") {
-      Command.toBytes(IncrementQ("key", 0x0L, 0x0L, 0x0, 0x0)).apply(1) should be (0x15)
+      Command.toBytes(Command.IncrementQ("key", 0x0L, 0x0L, 0x0, 0x0)).apply(1) should be (0x15)
     }
 
     it("should be correct for Decrement command") {
-      Command.toBytes(Decrement("key", 0x0L, 0x0L, 0x0)).apply(1) should be (0x06)
+      Command.toBytes(Command.Decrement("key", 0x0L, 0x0L, 0x0)).apply(1) should be (0x06)
     }
 
     it("should be correct for DecrementQ command") {
-      Command.toBytes(DecrementQ("key", 0x0L, 0x0L, 0x0, 0x0)).apply(1) should be (0x16)
+      Command.toBytes(Command.DecrementQ("key", 0x0L, 0x0L, 0x0, 0x0)).apply(1) should be (0x16)
     }
 
     it("should be correct for Noop command") {
-      Command.toBytes(Noop(0x0)).apply(1) should be (0x0a)
+      Command.toBytes(Command.Noop(0x0)).apply(1) should be (0x0a)
     }
   }
 
   describe("A Setter Command") {
     it("should serialize correctly") {
-      val cmd = Set("key", 0xffeeddcc, 0xbbaa9988, Some(0xffeeddccbbaa9988L), Array(0xff, 0xee, 0xdd, 0xcc))
+      val cmd = Command.Set("key", 0xffeeddcc, 0xbbaa9988, Some(0xffeeddccbbaa9988L), Array(0xff, 0xee, 0xdd, 0xcc))
 
       val bytes = Command.toBytes(cmd)
 
@@ -96,7 +96,7 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("A Quiet Setter Command") {
     it("should serialize correctly") {
-      val cmd = SetQ("key", 0xffeeddcc, 0xbbaa9988, 0x11223344, Some(0xffeeddccbbaa9988L), Array(0xff, 0xee, 0xdd, 0xcc))
+      val cmd = Command.SetQ("key", 0xffeeddcc, 0xbbaa9988, 0x11223344, Some(0xffeeddccbbaa9988L), Array(0xff, 0xee, 0xdd, 0xcc))
 
       val bytes = Command.toBytes(cmd)
 
@@ -119,7 +119,7 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("A Get Command") {
     it("should serialize correctly") {
-      val cmd = Get("key")
+      val cmd = Command.Get("key")
 
       val bytes = Command.toBytes(cmd)
 
@@ -139,7 +139,7 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("A GetQ Command") {
     it("should serialize correctly") {
-      val cmd = GetQ("key", 0xffffffff)
+      val cmd = Command.GetQ("key", 0xffffffff)
 
       val bytes = Command.toBytes(cmd)
 
@@ -159,7 +159,7 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("A Delete Command") {
     it("should serialize correctly") {
-      val cmd = Delete("key")
+      val cmd = Command.Delete("key")
 
       val bytes = Command.toBytes(cmd)
 
@@ -179,7 +179,7 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("A DeleteQ Command") {
     it("should serialize correctly") {
-      val cmd = DeleteQ("key", 0xffffffff)
+      val cmd = Command.DeleteQ("key", 0xffffffff)
 
       val bytes = Command.toBytes(cmd)
 
@@ -199,7 +199,7 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("A Noop Command") {
     it("should serialize correctly") {
-      val cmd = Noop(0xffffffff)
+      val cmd = Command.Noop(0xffffffff)
 
       val bytes = Command.toBytes(cmd)
 
@@ -218,7 +218,7 @@ class CommandSpec extends FunSpec with Matchers {
 
   describe("An IncDec Command") {
     it("should serialize correctly") {
-      val cmd = Increment("key", 0xffeeddccbbaa9988L, 0x7766554433221100L, 0x11223344)
+      val cmd = Command.Increment("key", 0xffeeddccbbaa9988L, 0x7766554433221100L, 0x11223344)
 
       val bytes = Command.toBytes(cmd)
 
