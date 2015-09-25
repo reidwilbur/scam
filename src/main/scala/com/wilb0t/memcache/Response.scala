@@ -42,7 +42,8 @@ protected object Response {
   protected[memcache]
   val headerLen = 24
 
-  protected case class PacketHeader(bytes: Array[Byte]) {
+  protected
+  case class PacketHeader(bytes: Array[Byte]) {
     val magic: Byte    = bytes(0)
     val opcode: Byte   = bytes(1)
     val keyLen: Int    = ((bytes(2) << 8) & 0xff00) | (bytes(3) & 0x00ff)
@@ -123,8 +124,10 @@ protected object Response {
           header.cas,
           packet.value.orElse(cmd.value)
         )
-      case 0x01 => KeyNotFound(cmd.keyBytes.map{ new String(_, Command.keyEncoding) })
-      case 0x02 => KeyExists(cmd.keyBytes.map{ new String(_, Command.keyEncoding)} )
+      case 0x01 =>
+        KeyNotFound(cmd.keyBytes.map{ new String(_, Command.keyEncoding) })
+      case 0x02 =>
+        KeyExists(cmd.keyBytes.map{ new String(_, Command.keyEncoding) })
       case 0x03 => ValueTooLarge
       case 0x04 => InvalidArguments
       case 0x05 => ItemNotStored
@@ -153,7 +156,7 @@ protected object Response {
     val bytes = new Array[Byte](numBytes)
 
     @tailrec
-    def _read(offset: Int): Array[Byte] = {
+    def _readStream(offset: Int): Array[Byte] = {
       if (offset >= numBytes) {
         bytes
       } else {
@@ -170,14 +173,16 @@ protected object Response {
           if (read == -1)
             throw new RuntimeException(s"Got end of stream, expected $numBytes bytes, read $offset bytes")
 
-          _read(offset + read)
+          _readStream(offset + read)
         } else {
-          _read(offset)
+          // TODO(reid): essentially spin waiting here on the input stream
+          // not sure if there is a way to sleep until stream has data?
+          _readStream(offset)
         }
       }
     }
 
-    _read(0)
+    _readStream(0)
   }
 }
 

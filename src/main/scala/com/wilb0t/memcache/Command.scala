@@ -276,12 +276,12 @@ object Command {
   def defaultResponse(cmd: Command): Response =
     cmd match {
       case GetQ(k,o)             => Response.KeyNotFound(Some(k))
-      case SetQ(k,f,e,o,c,v)     => Response.Success(Some(k), c.getOrElse(0), Some(v))
-      case AddQ(k,f,e,o,c,v)     => Response.Success(Some(k), c.getOrElse(0), Some(v))
-      case ReplaceQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
-      case DeleteQ(k,o)          => Response.Success(Some(k), 0x0, None)
-      case IncrementQ(k,d,i,e,o) => Response.Success(Some(k), 0x0, None)
-      case DecrementQ(k,d,i,e,o) => Response.Success(Some(k), 0x0, None)
+      case SetQ(k,f,e,o,c,v)     => Response.Success(Some(k), 0, Some(v))
+      case AddQ(k,f,e,o,c,v)     => Response.Success(Some(k), 0, Some(v))
+      case ReplaceQ(k,f,e,o,c,v) => Response.Success(Some(k), 0, Some(v))
+      case DeleteQ(k,o)          => Response.Success(Some(k), 0, None)
+      case IncrementQ(k,d,i,e,o) => Response.Success(Some(k), 0, None)
+      case DecrementQ(k,d,i,e,o) => Response.Success(Some(k), 0, None)
       case _ => throw new DefaultResponseException(s"No default response for $cmd")
     }
 }

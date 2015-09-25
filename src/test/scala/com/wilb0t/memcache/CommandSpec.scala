@@ -261,4 +261,101 @@ class CommandSpec extends FunSpec with Matchers {
       )))
     }
   }
+
+  describe("Command") {
+    describe("quietCommand") {
+      it("must return GetQ for Get") {
+        Command.quietCommand(Command.Get("key"), 0xab) should be
+          (Command.GetQ("key", 0xab))
+      }
+
+      it("must return SetQ for Set") {
+        Command.quietCommand(Command.Set("key", 0x0, 0x1, Some(0x2), Array(0x1)), 0xab) should matchPattern {
+          case Command.SetQ("key", 0x0, 0x1, 0xab, Some(0x2), Array(0x1)) =>
+        }
+      }
+
+      it("must return AddQ for Add") {
+        Command.quietCommand(Command.Add("key", 0x0, 0x1, Some(0x2), Array(0x1)), 0xab) should matchPattern {
+          case Command.AddQ("key", 0x0, 0x1, 0xab, Some(0x2), Array(0x1)) =>
+        }
+      }
+
+      it("must return ReplaceQ for Replace") {
+        Command.quietCommand(Command.Replace("key", 0x0, 0x1, Some(0x2), Array(0x1)), 0xab) should matchPattern {
+          case Command.ReplaceQ("key", 0x0, 0x1, 0xab, Some(0x2), Array(0x1)) =>
+        }
+      }
+
+      it("must return DeleteQ for Delete") {
+        Command.quietCommand(Command.Delete("key"), 0xab) should matchPattern {
+          case Command.DeleteQ("key", 0xab) =>
+        }
+      }
+
+      it("must return IncrementQ for Increment") {
+        Command.quietCommand(Command.Increment("key", 0x0L, 0x1L, 0x2), 0xab) should matchPattern {
+          case Command.IncrementQ("key", 0x0L, 0x1L, 0x02, 0xab) =>
+        }
+      }
+
+      it("must return DecrementQ for Decrement") {
+        Command.quietCommand(Command.Decrement("key", 0x0L, 0x1L, 0x2), 0xab) should matchPattern {
+          case Command.DecrementQ("key", 0x0L, 0x1L, 0x02, 0xab) =>
+        }
+      }
+
+      it("must throw QuietCommandException for unknown Command") {
+        a [Command.QuietCommandException] should be thrownBy Command.quietCommand(Command.Noop(0xab), 0x12)
+      }
+    }
+
+    describe("defaultResponse") {
+      it("must be KeyNotFound for GetQ Command") {
+        Command.defaultResponse(Command.GetQ("key", 0xab)) should matchPattern {
+          case Response.KeyNotFound(Some("key")) =>
+        }
+      }
+
+      it("must be Success for SetQ Command") {
+        Command.defaultResponse(Command.SetQ("key", 0x0, 0x1, 0xab, Some(0x2), Array(0x1))) should matchPattern {
+          case Response.Success(Some("key"), 0, Some(Array(0x1))) =>
+        }
+      }
+
+      it("must be Success for AddQ Command") {
+        Command.defaultResponse(Command.AddQ("key", 0x0, 0x1, 0xab, Some(0x2), Array(0x1))) should matchPattern {
+          case Response.Success(Some("key"), 0, Some(Array(0x1))) =>
+        }
+      }
+
+      it("must be Success for ReplaceQ Command") {
+        Command.defaultResponse(Command.ReplaceQ("key", 0x0, 0x1, 0xab, Some(0x2), Array(0x1))) should matchPattern {
+          case Response.Success(Some("key"), 0, Some(Array(0x1))) =>
+        }
+      }
+
+      it("must be Success for DeleteQ Command") {
+        Command.defaultResponse(Command.DeleteQ("key", 0xab)) should matchPattern {
+          case Response.Success(Some("key"), 0, None) =>
+        }
+      }
+
+      it("must be Success for IncrementQ Command") {
+        Command.defaultResponse(Command.IncrementQ("key", 0x0L, 0x1L, 0x2, 0xab)) should matchPattern {
+          case Response.Success(Some("key"), 0, None) =>
+        }
+      }
+
+      it("must be Success for DecrementQ Command") {
+        Command.defaultResponse(Command.DecrementQ("key", 0x0L, 0x1L, 0x2, 0xab)) should matchPattern {
+          case Response.Success(Some("key"), 0, None) =>
+        }
+      }
+
+      it("must throw DefaultResponseException for unknown Command") {
+        a [Command.DefaultResponseException] should be thrownBy Command.defaultResponse(Command.Noop(0xab))
+      }
+    }
+  }
 }
