@@ -11,7 +11,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Awaitable, Await}
 
 @RunWith(classOf[JUnitRunner])
-class ClientSpec extends FunSpec with Matchers {
+class ClientIntegrationSpec extends FunSpec with Matchers {
 
   implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
 
@@ -25,7 +25,7 @@ class ClientSpec extends FunSpec with Matchers {
   }
 
   describe("A Client") {
-    it("should execute commands") {
+    it("should execute commands in order") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
@@ -85,7 +85,7 @@ class ClientSpec extends FunSpec with Matchers {
       client.close()
     }
 
-    it ("should return a value for each element of getM") {
+    it ("should return a Response for each Command of getM ") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
@@ -120,7 +120,7 @@ class ClientSpec extends FunSpec with Matchers {
       client.close()
     }
 
-    it ("should return a value for each element of setM") {
+    it ("should return a Response for each Command of setM") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
@@ -146,7 +146,7 @@ class ClientSpec extends FunSpec with Matchers {
       client.close()
     }
 
-    it ("should return a value for each element of delM") {
+    it ("should return a Response for each Command of delM") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
@@ -176,7 +176,7 @@ class ClientSpec extends FunSpec with Matchers {
       client.close()
     }
 
-    it("should return a value for each element of an incDecM") {
+    it("should return a Response for each Command of an incDecM") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
