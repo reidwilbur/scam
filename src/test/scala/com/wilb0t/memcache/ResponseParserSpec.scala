@@ -43,7 +43,7 @@ class ResponseParserSpec extends FunSpec with Matchers {
 
       val response = Response.Parser(input,cmd)(Duration(1, TimeUnit.MILLISECONDS))
       response should matchPattern {
-        case Success(Some("key"), 0x0807060504030201L, Some(Array(0x0))) => }
+        case Response.Success(Some("key"), 0x0807060504030201L, Some(Array(0x0))) => }
     }
   }
 }

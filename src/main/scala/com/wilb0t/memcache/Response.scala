@@ -8,27 +8,28 @@ import scala.concurrent.duration.Duration
 
 sealed trait Response
 
-case class Success(key: Option[String], cas: Long, value: Option[Array[Byte]]) extends Response
-
-case class KeyNotFound(key: Option[String]) extends Response
-
-case class KeyExists(key: Option[String]) extends Response
-
-case object ValueTooLarge extends Response
-
-case object InvalidArguments extends Response
-
-case object ItemNotStored extends Response
-
-case object IncDecNonNumericValue extends Response
-
-case object UnknownCommand extends Response
-
-case object OutOfMemory extends Response
-
-case object UnknownServerResponse extends Response
-
 protected object Response {
+
+  case class Success(key: Option[String], cas: Long, value: Option[Array[Byte]])
+    extends Response
+
+  case class KeyNotFound(key: Option[String]) extends Response
+
+  case class KeyExists(key: Option[String]) extends Response
+
+  case object ValueTooLarge extends Response
+
+  case object InvalidArguments extends Response
+
+  case object ItemNotStored extends Response
+
+  case object IncDecNonNumericValue extends Response
+
+  case object UnknownCommand extends Response
+
+  case object OutOfMemory extends Response
+
+  case object UnknownServerResponse extends Response
 
   protected[memcache]
   def toInt(bytes: Array[Byte], ofs: Int): Int =
@@ -38,6 +39,7 @@ protected object Response {
   def toLong(bytes: Array[Byte], ofs: Int): Long =
     ((toInt(bytes, ofs).toLong << 32) & 0xffffffff00000000L) | (toInt(bytes, ofs+4) & 0x0ffffffffL)
 
+  protected[memcache]
   val headerLen = 24
 
   protected case class PacketHeader(bytes: Array[Byte]) {
@@ -63,6 +65,7 @@ protected object Response {
       if (header.extLen + header.keyLen < header.bodyLen) Some(body.slice(header.extLen + header.keyLen, header.bodyLen)) else None
   }
 
+  protected[memcache]
   case object Parser {
     /**
      * Returns map of Int to Response corresponding to the input Commands.  Note that the server may not return
@@ -80,17 +83,17 @@ protected object Response {
      */
     def apply(input: InputStream, finalResponseTag: Int, commands: Map[Int, Command])(timeout: Duration): Map[Int, Response] = {
       @tailrec
-      def _parse(responses: Map[Int, Response]): Map[Int,Response] = {
+      def _parse(responsesAcc: Map[Int, Response]): Map[Int,Response] = {
         val packet = read(input)(timeout)
 
-        val currResponses = commands.get(packet.header.opaque).map{
-              cmd => responses + ((packet.header.opaque, toResponse(cmd, packet)))
-            }.getOrElse(responses)
+        val responses = commands.get(packet.header.opaque).map{
+          cmd => responsesAcc + ((packet.header.opaque, toResponse(cmd, packet)))
+        }.getOrElse(responsesAcc)
 
         if (packet.header.opaque == finalResponseTag)
-          currResponses
+          responses
         else
-          _parse(currResponses)
+          _parse(responses)
       }
       _parse(Map())
     }
@@ -110,10 +113,16 @@ protected object Response {
       toResponse(cmd, read(input)(timeout))
   }
 
+  protected[memcache]
   def toResponse(cmd: Command, packet: Packet): Response = {
     val header = packet.header
     header.status match {
-      case 0x00 => Success(cmd.keyBytes.map{ new String(_, Command.keyEncoding) }, header.cas, packet.value.orElse(cmd.value))
+      case 0x00 =>
+        Success(
+          cmd.keyBytes.map{ new String(_, Command.keyEncoding) },
+          header.cas,
+          packet.value.orElse(cmd.value)
+        )
       case 0x01 => KeyNotFound(cmd.keyBytes.map{ new String(_, Command.keyEncoding) })
       case 0x02 => KeyExists(cmd.keyBytes.map{ new String(_, Command.keyEncoding)} )
       case 0x03 => ValueTooLarge
@@ -126,6 +135,7 @@ protected object Response {
     }
   }
 
+  protected[memcache]
   def read(input: InputStream)(timeout: Duration): Packet = {
     val startTime = System.currentTimeMillis()
     val headerBytes = read(input, headerLen)(timeout)
@@ -137,6 +147,7 @@ protected object Response {
     Packet(header, bodyBytes)
   }
 
+  protected[memcache]
   def read(input: InputStream, numBytes: Int)(timeout: Duration): Array[Byte] = {
     val startTime = System.currentTimeMillis()
     val bytes = new Array[Byte](numBytes)

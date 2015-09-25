@@ -137,7 +137,7 @@ class CommandSpec extends FunSpec with Matchers {
     }
   }
 
-  describe("A GetQ Command") {
+  describe("A Quiet Get Command") {
     it("should serialize correctly") {
       val cmd = Command.GetQ("key", 0xffffffff)
 
@@ -177,7 +177,7 @@ class CommandSpec extends FunSpec with Matchers {
     }
   }
 
-  describe("A DeleteQ Command") {
+  describe("A Quiet Delete Command") {
     it("should serialize correctly") {
       val cmd = Command.DeleteQ("key", 0xffffffff)
 
@@ -230,6 +230,29 @@ class CommandSpec extends FunSpec with Matchers {
         0x00, 0x00, 0x00,       //reserved
         0x00, 0x00, 0x00, 0x17, //bodylen
         0x00, 0x00, 0x00, 0x00, //opaque value
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //cas
+        0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, //extras delta
+        0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00, //extras initVal
+        0x11, 0x22, 0x33, 0x44,  //extras exptime
+        "key".charAt(0), "key".charAt(1), "key".charAt(2) //key
+      )))
+    }
+  }
+
+  describe("A Quiet IncDec Command") {
+    it("should serialize correctly") {
+      val cmd = Command.IncrementQ("key", 0xffeeddccbbaa9988L, 0x7766554433221100L, 0x11223344, 0x55667788)
+
+      val bytes = Command.toBytes(cmd)
+
+      bytes should be (toByteArray(Array(
+        0x80,                   //magic
+        0x15,                   //opcode
+        0x00, 0x03,             //keylen
+        0x14,                   //extras len
+        0x00, 0x00, 0x00,       //reserved
+        0x00, 0x00, 0x00, 0x17, //bodylen
+        0x55, 0x66, 0x77, 0x88, //opaque value
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //cas
         0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, //extras delta
         0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00, //extras initVal

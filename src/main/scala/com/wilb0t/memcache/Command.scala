@@ -262,11 +262,11 @@ object Command {
   protected[memcache]
   def quietCommand(cmd: Command, opaque: Int): Command =
     cmd match {
-      case Get(k) => GetQ(k, opaque)
-      case Set(k,f,e,c,v) => SetQ(k, f, e, opaque, c, v)
-      case Add(k,f,e,c,v) => AddQ(k, f, e, opaque, c, v)
+      case Get(k)             => GetQ(k, opaque)
+      case Set(k,f,e,c,v)     => SetQ(k, f, e, opaque, c, v)
+      case Add(k,f,e,c,v)     => AddQ(k, f, e, opaque, c, v)
       case Replace(k,f,e,c,v) => ReplaceQ(k, f, e, opaque, c, v)
-      case Delete(k) => DeleteQ(k, opaque)
+      case Delete(k)          => DeleteQ(k, opaque)
       case Increment(k,d,i,e) => IncrementQ(k,d,i,e,opaque)
       case Decrement(k,d,i,e) => DecrementQ(k,d,i,e,opaque)
       case _ => throw new QuietCommandException(s"No quiet command for $cmd")
@@ -275,13 +275,13 @@ object Command {
   protected[memcache]
   def defaultResponse(cmd: Command): Response =
     cmd match {
-      case GetQ(k,o) => KeyNotFound(Some(k))
-      case SetQ(k,f,e,o,c,v) => Success(Some(k), c.getOrElse(0), Some(v))
-      case AddQ(k,f,e,o,c,v) => Success(Some(k), c.getOrElse(0), Some(v))
-      case ReplaceQ(k,f,e,o,c,v) => Success(Some(k), c.getOrElse(0), Some(v))
-      case DeleteQ(k,o) => Success(Some(k), 0x0, None)
-      case IncrementQ(k,d,i,e,o) => Success(Some(k), 0x0, None)
-      case DecrementQ(k,d,i,e,o) => Success(Some(k), 0x0, None)
+      case GetQ(k,o)             => Response.KeyNotFound(Some(k))
+      case SetQ(k,f,e,o,c,v)     => Response.Success(Some(k), c.getOrElse(0), Some(v))
+      case AddQ(k,f,e,o,c,v)     => Response.Success(Some(k), c.getOrElse(0), Some(v))
+      case ReplaceQ(k,f,e,o,c,v) => Response.Success(Some(k), c.getOrElse(0), Some(v))
+      case DeleteQ(k,o)          => Response.Success(Some(k), 0x0, None)
+      case IncrementQ(k,d,i,e,o) => Response.Success(Some(k), 0x0, None)
+      case DecrementQ(k,d,i,e,o) => Response.Success(Some(k), 0x0, None)
       case _ => throw new DefaultResponseException(s"No default response for $cmd")
     }
 }

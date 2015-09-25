@@ -33,54 +33,54 @@ class ClientSpec extends FunSpec with Matchers {
       val setResponse = blockForResult(
         client.execute(Command.Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3)))
       )
-      setResponse should matchPattern { case Success(Some("somekey"), _, Some(Array(0x0,0x01,0x2,0x3))) => }
+      setResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x0,0x01,0x2,0x3))) => }
 
       val getResponse = blockForResult(
         client.execute(Command.Get("somekey"))
       )
-      getResponse should matchPattern { case Success(Some("somekey"), _, Some(Array(0x0,0x1,0x2,0x3))) => }
+      getResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x0,0x1,0x2,0x3))) => }
 
       val addResponse = blockForResult(
         client.execute(Command.Add("somekey", 0, 3600, None, Array[Byte](0x4,0x5)))
       )
-      addResponse should matchPattern{ case KeyExists(Some("somekey")) => }
+      addResponse should matchPattern{ case Response.KeyExists(Some("somekey")) => }
 
       val replaceResponse = blockForResult(
         client.execute(Command.Replace("somekey", 0, 3600, None, Array[Byte](0x7,0x8)))
       )
-      replaceResponse should matchPattern { case Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
+      replaceResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
 
       val getReplacedResponse = blockForResult(
         client.execute(Command.Get("somekey"))
       )
-      getReplacedResponse should matchPattern { case Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
+      getReplacedResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
 
       val deleteResponse = blockForResult(
         client.execute(Command.Delete("somekey"))
       )
-      deleteResponse should matchPattern { case Success(Some("somekey"), _, None) => }
+      deleteResponse should matchPattern { case Response.Success(Some("somekey"), _, None) => }
 
       val getFailedResponse = blockForResult(
         client.execute(Command.Get("somekey"))
       )
-      getFailedResponse should matchPattern { case KeyNotFound(Some("somekey")) => }
+      getFailedResponse should matchPattern { case Response.KeyNotFound(Some("somekey")) => }
 
       client.execute(Command.Delete("incKey"))
 
       val incInitResponse = blockForResult(
         client.execute(Command.Increment("incKey", 0x35L, 0x0, 3600))
       )
-      incInitResponse should matchPattern { case Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0))) => }
+      incInitResponse should matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0))) => }
 
       val incResponse = blockForResult(
         client.execute(Command.Increment("incKey", 0x35L, 0x0, 3600))
       )
-      incResponse should matchPattern { case Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x35))) => }
+      incResponse should matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x35))) => }
 
       val decResponse = blockForResult(
         client.execute(Command.Decrement("incKey", 0x01L, 0x0, 3600))
       )
-      decResponse should matchPattern { case Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x34))) => }
+      decResponse should matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x34))) => }
 
       client.close()
     }
@@ -110,10 +110,10 @@ class ClientSpec extends FunSpec with Matchers {
 
       getMResp should matchPattern {
         case List(
-          KeyNotFound(Some("somekey4")),
-          Success(Some("somekey2"), _, Some(Array(0x2))),
-          Success(Some("somekey3"), _, Some(Array(0x3))),
-          Success(Some("somekey1"), _, Some(Array(0x1)))
+          Response.KeyNotFound(Some("somekey4")),
+          Response.Success(Some("somekey2"), _, Some(Array(0x2))),
+          Response.Success(Some("somekey3"), _, Some(Array(0x3))),
+          Response.Success(Some("somekey1"), _, Some(Array(0x1)))
         ) =>
       }
 
@@ -136,10 +136,10 @@ class ClientSpec extends FunSpec with Matchers {
 
       setMResp should matchPattern {
         case List(
-        Success(Some("somekey1"), _, Some(Array(0x01))),
-        Success(Some("somekey2"), _, Some(Array(0x02))),
-        Success(Some("somekey3"), _, Some(Array(0x03))),
-        KeyExists(Some("somekey3"))
+          Response.Success(Some("somekey1"), _, Some(Array(0x01))),
+          Response.Success(Some("somekey2"), _, Some(Array(0x02))),
+          Response.Success(Some("somekey3"), _, Some(Array(0x03))),
+          Response.KeyExists(Some("somekey3"))
         ) =>
       }
 
@@ -166,10 +166,10 @@ class ClientSpec extends FunSpec with Matchers {
 
       delMResp should matchPattern {
         case List(
-          Success(Some("somekey2"), _, None),
-          Success(Some("somekey1"), _, None),
-          KeyNotFound(Some("doesntexist")),
-          Success(Some("somekey3"), _, None)
+          Response.Success(Some("somekey2"), _, None),
+          Response.Success(Some("somekey1"), _, None),
+          Response.KeyNotFound(Some("doesntexist")),
+          Response.Success(Some("somekey3"), _, None)
         ) =>
       }
 
@@ -197,10 +197,10 @@ class ClientSpec extends FunSpec with Matchers {
 
       resp should matchPattern {
         case List(
-          Success(Some("counter1"), _, None),
-          Success(Some("counter1"), _, None),
-          Success(Some("counter1"), _, None),
-          Success(Some("counter2"), _, None)
+          Response.Success(Some("counter1"), _, None),
+          Response.Success(Some("counter1"), _, None),
+          Response.Success(Some("counter1"), _, None),
+          Response.Success(Some("counter2"), _, None)
         ) =>
       }
 
@@ -209,7 +209,7 @@ class ClientSpec extends FunSpec with Matchers {
       )
 
       incResp should matchPattern {
-        case Success(Some("counter1"),_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1))) =>
+        case Response.Success(Some("counter1"),_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1))) =>
       }
 
       val decResp = blockForResult(
@@ -217,7 +217,7 @@ class ClientSpec extends FunSpec with Matchers {
       )
 
       decResp should matchPattern {
-        case Success(Some("counter2"),_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xf))) =>
+        case Response.Success(Some("counter2"),_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xf))) =>
       }
 
       client.close()
