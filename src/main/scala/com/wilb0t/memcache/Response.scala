@@ -85,7 +85,7 @@ protected object Response {
     def apply(input: InputStream, finalResponseTag: Int, commands: Map[Int, Command])(timeout: Duration): Map[Int, Response] = {
       @tailrec
       def _parse(responsesAcc: Map[Int, Response]): Map[Int,Response] = {
-        val packet = read(input)(timeout)
+        val packet = readPacket(timeout)(input)
 
         val responses = commands.get(packet.header.opaque).map{
           cmd => responsesAcc + ((packet.header.opaque, toResponse(cmd, packet)))
@@ -111,78 +111,72 @@ protected object Response {
      * @return Response
      */
     def apply(input: InputStream, cmd: Command)(timeout: Duration): Response =
-      toResponse(cmd, read(input)(timeout))
-  }
+      toResponse(cmd, readPacket(timeout)(input))
 
-  protected[memcache]
-  def toResponse(cmd: Command, packet: Packet): Response = {
-    val header = packet.header
-    header.status match {
-      case 0x00 =>
-        Success(
-          cmd.keyBytes.map{ new String(_, Command.keyEncoding) },
-          header.cas,
-          packet.value.orElse(cmd.value)
-        )
-      case 0x01 =>
-        KeyNotFound(cmd.keyBytes.map{ new String(_, Command.keyEncoding) })
-      case 0x02 =>
-        KeyExists(cmd.keyBytes.map{ new String(_, Command.keyEncoding) })
-      case 0x03 => ValueTooLarge
-      case 0x04 => InvalidArguments
-      case 0x05 => ItemNotStored
-      case 0x06 => IncDecNonNumericValue
-      case 0x81 => UnknownCommand
-      case 0x82 => OutOfMemory
-      case _    => UnknownServerResponse
-    }
-  }
-
-  protected[memcache]
-  def read(input: InputStream)(timeout: Duration): Packet = {
-    val startTime = System.currentTimeMillis()
-    val headerBytes = read(input, headerLen)(timeout)
-    val header = PacketHeader(headerBytes)
-
-    val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
-    val bodyTimeout = (timeout - elapsed).max(Duration(0, TimeUnit.MILLISECONDS))
-    val bodyBytes = read(input, header.bodyLen)(bodyTimeout)
-    Packet(header, bodyBytes)
-  }
-
-  protected[memcache]
-  def read(input: InputStream, numBytes: Int)(timeout: Duration): Array[Byte] = {
-    val startTime = System.currentTimeMillis()
-    val bytes = new Array[Byte](numBytes)
-
-    @tailrec
-    def _readStream(offset: Int): Array[Byte] = {
-      if (offset >= numBytes) {
-        bytes
-      } else {
-        val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
-        // TODO(reid): should try to flush input on read failure? may break/confuse later commands
-        // probably need to drop the connection since will be out of sync with server
-        if (elapsed >= timeout) throw new TimeoutException(s"Timed out reading $numBytes bytes after $timeout")
-
-        val avail = input.available()
-        if (avail > 0) {
-          val bytesToRead = math.min(avail, bytes.length - offset)
-          val read = input.read(bytes, offset, bytesToRead)
-
-          if (read == -1)
-            throw new RuntimeException(s"Got end of stream, expected $numBytes bytes, read $offset bytes")
-
-          _readStream(offset + read)
-        } else {
-          // TODO(reid): essentially spin waiting here on the input stream
-          // not sure if there is a way to sleep until stream has data?
-          _readStream(offset)
-        }
+    def toResponse(cmd: Command, packet: Packet): Response = {
+      val header = packet.header
+      header.status match {
+        case 0x00 =>
+          Success(
+            cmd.keyBytes.map{ new String(_, Command.keyEncoding) },
+            header.cas,
+            packet.value.orElse(cmd.value)
+          )
+        case 0x01 =>
+          KeyNotFound(cmd.keyBytes.map{ new String(_, Command.keyEncoding) })
+        case 0x02 =>
+          KeyExists(cmd.keyBytes.map{ new String(_, Command.keyEncoding) })
+        case 0x03 => ValueTooLarge
+        case 0x04 => InvalidArguments
+        case 0x05 => ItemNotStored
+        case 0x06 => IncDecNonNumericValue
+        case 0x81 => UnknownCommand
+        case 0x82 => OutOfMemory
+        case _    => UnknownServerResponse
       }
     }
 
-    _readStream(0)
+    def readPacket(timeout: Duration)(input: InputStream): Packet = {
+      val startTime = System.currentTimeMillis()
+      val headerBytes = readBytes(input, headerLen)(timeout)
+      val header = PacketHeader(headerBytes)
+
+      val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
+      val bodyTimeout = (timeout - elapsed).max(Duration(0, TimeUnit.MILLISECONDS))
+      val bodyBytes = readBytes(input, header.bodyLen)(bodyTimeout)
+      Packet(header, bodyBytes)
+    }
+
+    def readBytes(input: InputStream, numBytes: Int)(timeout: Duration): Array[Byte] = {
+      val startTime = System.currentTimeMillis()
+      val bytes = new Array[Byte](numBytes)
+
+      @tailrec
+      def _readStream(offset: Int): Array[Byte] = {
+        if (offset >= numBytes) {
+          bytes
+        } else {
+          val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
+          // TODO(reid): should try to flush input on read failure? may break/confuse later commands
+          // probably need to drop the connection since will be out of sync with server
+          if (elapsed >= timeout) throw new TimeoutException(s"Timed out reading $numBytes bytes after $timeout")
+
+          val avail = input.available()
+          if (avail > 0) {
+            val bytesToRead = math.min(avail, bytes.length - offset)
+            val read = input.read(bytes, offset, bytesToRead)
+
+            _readStream(offset + read)
+          } else {
+            // TODO(reid): essentially spin waiting here on the input stream
+            // not sure if there is a way to sleep until stream has data?
+            _readStream(offset)
+          }
+        }
+      }
+
+      _readStream(0)
+    }
   }
 }
 
