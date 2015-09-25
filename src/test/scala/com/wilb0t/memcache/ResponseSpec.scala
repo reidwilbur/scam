@@ -10,7 +10,7 @@ import org.scalatest.junit.JUnitRunner
 import scala.concurrent.duration.Duration
 
 @RunWith(classOf[JUnitRunner])
-class ResponseParserSpec extends FunSpec with Matchers {
+class ResponseSpec extends FunSpec with Matchers {
 
   implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
 
