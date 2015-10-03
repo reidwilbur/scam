@@ -4,24 +4,24 @@ import java.io._
 import java.util.concurrent.{TimeoutException, TimeUnit}
 
 import com.wilb0t.memcache.Response.ByteReader
-import org.junit.runner.RunWith
 import org.scalatest._
-import org.scalatest.junit.JUnitRunner
 
 import scala.concurrent.duration.Duration
 
-@RunWith(classOf[JUnitRunner])
 class ResponseSpec extends FunSpec with MustMatchers {
 
   implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
 
-  val successSetResponse = toByteArray(Array(
-    0x81, 0x01, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x08, 0x07, 0x06, 0x05,
-    0x04, 0x03, 0x02, 0x01
+  val setNoBodySuccessResponse = toByteArray(Array(
+    0x81,       // magic number
+    0x01,       // opcode
+    0x00, 0x00, // key length
+    0x00,       // extra length
+    0x00,       // data type
+    0x00, 0x00, // status
+    0x00, 0x00, 0x00, 0x00, // total body length
+    0x00, 0x00, 0x00, 0x00, // opaque (sent from client)
+    0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01  // cas
   ))
 
   describe("Response") {
@@ -43,12 +43,12 @@ class ResponseSpec extends FunSpec with MustMatchers {
 
   describe("Response.Reader") {
     describe("readBytes") {
-      implicit val timeout = Duration(1, TimeUnit.MILLISECONDS)
+      implicit val timeout = Duration(5, TimeUnit.MILLISECONDS)
 
       it("must return correct bytes from InputStream") {
-        val input = byteStream(successSetResponse)
+        val input = byteStream(setNoBodySuccessResponse)
 
-        Response.Reader.readBytes(input, Response.headerLen)(timeout) must be (successSetResponse)
+        Response.Reader.readBytes(input, Response.headerLen)(timeout) must be (setNoBodySuccessResponse)
 
         input.close()
       }
@@ -71,15 +71,40 @@ class ResponseSpec extends FunSpec with MustMatchers {
         val input = byteStream(Array(0x81, 0x01, 0x00, 0x00))
 
         a [TimeoutException] must be thrownBy
-          Response.Reader.readBytes(input, Response.headerLen)(Duration(10, TimeUnit.MILLISECONDS))
+          Response.Reader.readBytes(input, Response.headerLen)(Duration(1, TimeUnit.MILLISECONDS))
 
         input.close()
+      }
+      
+      describe("readPacket") {
+        it("should read packet for a server response with no body") {
+          val inputStream = new ByteArrayInputStream(Array())
+
+//          def readBytes(input: InputStream, numBytes: Int)(timeout: Duration): Array[Byte] = {
+//            input must be theSameInstanceAs (inputStream)
+//            //numBytes must be (24)
+//            setNoBodySuccessResponse
+//          }
+//
+//          val packet = Response.Reader.readPacket(readBytes)(inputStream)(Duration(1, TimeUnit.MILLISECONDS))
+//
+//          packet.header.bodyLen must be (0)
+//          packet.header.magic must be (0x81)
+//          packet.header.status must be (0x0)
+//          packet.header.cas must be (0x8877665544332211L)
+//          packet.header.extLen must be (0)
+//          packet.header.opcode must be (0)
+//          packet.extras must be (None)
+//          packet.key must be (None)
+//          packet.value must be (None)
+          inputStream.close()
+        }
       }
     }
 
     it("must return Success for a success server packet") {
       val cmd = Command.Set("key", 0x0, 0x0, None, Array(0x0))
-      val input = byteStream(successSetResponse)
+      val input = byteStream(setNoBodySuccessResponse)
 
       val response = Response.Reader().read(input,cmd)(Duration(1, TimeUnit.MILLISECONDS))
       response must matchPattern {

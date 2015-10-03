@@ -2,15 +2,12 @@ package com.wilb0t.memcache
 
 import java.util.concurrent.TimeUnit
 
-import org.junit.runner.RunWith
 import org.scalatest._
-import org.scalatest.junit.JUnitRunner
 import java.net.InetAddress
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Awaitable, Await}
 
-@RunWith(classOf[JUnitRunner])
 class ClientIntegrationSpec extends FunSpec with Matchers {
 
   implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
