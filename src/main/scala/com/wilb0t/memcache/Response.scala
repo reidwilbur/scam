@@ -70,13 +70,13 @@ protected object Response {
       if (header.extLen + header.keyLen < header.bodyLen) Some(body.slice(header.extLen + header.keyLen, header.bodyLen)) else None
   }
 
-  protected[memcache]
+  //protected[memcache]
   type ResponseBuilder = (Command, Packet) => Response
 
-  protected[memcache]
-  type ByteReader      = (InputStream, Int) => (Duration => Array[Byte])
+  //protected[memcache]
+  type ByteReader      = (InputStream, Int, Duration) => Array[Byte]
 
-  protected[memcache]
+  //protected[memcache]
   type PacketReader    = InputStream => (Duration => Packet)
 
   protected[memcache]
@@ -171,16 +171,16 @@ protected object Response {
 
     def readPacket(readBytes: ByteReader)(input: InputStream)(timeout: Duration): Packet = {
       val startTime = System.currentTimeMillis()
-      val headerBytes = readBytes(input, headerLen)(timeout)
+      val headerBytes = readBytes(input, headerLen, timeout)
       val header = PacketHeader(headerBytes)
 
       val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
       val bodyTimeout = (timeout - elapsed).max(Duration(0, TimeUnit.MILLISECONDS))
-      val bodyBytes = readBytes(input, header.bodyLen)(bodyTimeout)
+      val bodyBytes = readBytes(input, header.bodyLen, bodyTimeout)
       Packet(header, bodyBytes)
     }
 
-    def readBytes(input: InputStream, numBytes: Int)(timeout: Duration): Array[Byte] = {
+    def readBytes(input: InputStream, numBytes: Int, timeout: Duration): Array[Byte] = {
       val startTime = System.currentTimeMillis()
       val bytes = new Array[Byte](numBytes)
 
