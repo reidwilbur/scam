@@ -42,8 +42,24 @@ protected object Response {
   protected[memcache]
   val headerLen = 24
 
-  protected
-  case class PacketHeader(bytes: Array[Byte]) {
+  protected[memcache]
+  trait PacketHeader {
+    def magic: Byte
+    def opcode: Byte
+    def keyLen: Int
+    def extLen: Int
+    def dataType: Byte
+    def status: Int
+    def bodyLen: Int
+    def opaque: Int
+    def cas: Long
+  }
+
+  protected[memcache]
+  case class PacketHeaderImpl(bytes: Array[Byte]) extends PacketHeader {
+    protected[memcache] // needed for mocking/testing
+    def this() = this(Array.fill[Byte](Response.headerLen){0})
+
     val magic: Byte = bytes(0)
     val opcode: Byte = bytes(1)
     val keyLen: Int = ((bytes(2) << 8) & 0xff00) | (bytes(3) & 0x00ff)
@@ -59,7 +75,8 @@ protected object Response {
     def cas: Long = toLong(bytes, 16)
   }
 
-  protected case class Packet(header: PacketHeader, body: Array[Byte]) {
+  protected[memcache]
+  case class Packet(header: PacketHeader, body: Array[Byte]) {
     def extras: Option[Array[Byte]] =
       if (header.extLen > 0) Some(body.slice(0, header.extLen)) else None
 
@@ -172,7 +189,7 @@ protected object Response {
     def readPacket(readBytes: ByteReader)(input: InputStream, timeout: Duration): Packet = {
       val startTime = System.currentTimeMillis()
       val headerBytes = readBytes(input, headerLen, timeout)
-      val header = PacketHeader(headerBytes)
+      val header = PacketHeaderImpl(headerBytes)
 
       val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
       val bodyTimeout = (timeout - elapsed).max(Duration(0, TimeUnit.MILLISECONDS))

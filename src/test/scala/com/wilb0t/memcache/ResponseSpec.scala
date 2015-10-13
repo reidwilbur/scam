@@ -164,4 +164,65 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
       input.close()
     }
   }
+
+  describe("PacketHeaderImpl") {
+    it("should unpack byte array into correct fields") {
+      val opcode = 1.toByte
+      val keyLen = 0xff00
+      val extraLen = 0xf0
+      val status = 0xfeed
+      val bodyLen = 0xfff0
+      val opaque = 0x04030201
+      val cas = 0x0807060504030201L
+
+      val header = Response.PacketHeaderImpl(
+        headerBytes(opcode, keyLen, extraLen.toByte, status, bodyLen, opaque, cas)
+      )
+
+      header.magic    must be(0x81.toByte)
+      header.opcode   must be(opcode)
+      header.keyLen   must be(keyLen)
+      header.extLen   must be(extraLen)
+      header.dataType must be(0x0)
+      header.status   must be(status)
+      header.bodyLen  must be(bodyLen)
+      header.opaque   must be(opaque)
+      header.cas      must be(cas)
+    }
+  }
+
+  describe("Packet") {
+    it("should unpack extras from body based on PacketHeader") {
+      val header = mock[Response.PacketHeader]
+
+      (header.extLen _).expects().returns(4).atLeastOnce()
+
+      val packet = Response.Packet(header, Array(0x01, 0x02, 0x03, 0x04))
+
+      packet.extras must matchPattern{ case Some(Array(0x01, 0x02, 0x03, 0x04)) => }
+    }
+
+    it("should unpack key from body based on PacketHeader") {
+      val header = mock[Response.PacketHeader]
+
+      (header.extLen _).expects().returns(4).atLeastOnce()
+      (header.keyLen _).expects().returns(2).atLeastOnce()
+
+      val packet = Response.Packet(header, Array(0x01, 0x02, 0x03, 0x04, 0x05, 0x06))
+
+      packet.key must matchPattern{ case Some(Array(0x05, 0x06)) => }
+    }
+
+    it("should unpack value from body based on PacketHeader") {
+      val header = mock[Response.PacketHeader]
+
+      (header.extLen _).expects().returns(4).atLeastOnce()
+      (header.keyLen _).expects().returns(2).atLeastOnce()
+      (header.bodyLen _).expects().returns(8).atLeastOnce()
+
+      val packet = Response.Packet(header, Array(0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08))
+
+      packet.value must matchPattern{ case Some(Array(0x07, 0x08)) => }
+    }
+  }
 }
