@@ -107,7 +107,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
           byteReader.expects(input, 24, *).returns(headerBytes(opcode, keyLen, extraLen, status, bodyLen, opaque, cas))
           byteReader.expects(input, 0, *).returns(Array())
 
-          val packet = Response.Reader.readPacket(byteReader)(input)(Duration(1, TimeUnit.MILLISECONDS))
+          val packet = Response.Reader.readPacket(byteReader)(input, Duration(1, TimeUnit.MILLISECONDS))
 
           packet.header.bodyLen must be (bodyLen)
           packet.header.magic   must be (0x81.toByte)
@@ -137,7 +137,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         byteReader.expects(input, 24, *).returns(headerBytes(opcode, keyLen, extraLen, status, bodyLen, opaque, cas))
         byteReader.expects(input, 4, *).returns(Array(0x04, 0x03, 0x02, 0x01))
 
-        val packet = Response.Reader.readPacket(byteReader)(input)(Duration(1, TimeUnit.MILLISECONDS))
+        val packet = Response.Reader.readPacket(byteReader)(input, Duration(1, TimeUnit.MILLISECONDS))
 
         packet.header.bodyLen must be(bodyLen)
         packet.header.magic   must be(0x81.toByte)

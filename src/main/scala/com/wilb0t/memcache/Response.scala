@@ -70,14 +70,14 @@ protected object Response {
       if (header.extLen + header.keyLen < header.bodyLen) Some(body.slice(header.extLen + header.keyLen, header.bodyLen)) else None
   }
 
-  //protected[memcache]
+  protected[memcache]
   type ResponseBuilder = (Command, Packet) => Response
 
-  //protected[memcache]
+  protected[memcache]
   type ByteReader      = (InputStream, Int, Duration) => Array[Byte]
 
-  //protected[memcache]
-  type PacketReader    = InputStream => (Duration => Packet)
+  protected[memcache]
+  type PacketReader    = (InputStream, Duration) => Packet
 
   protected[memcache]
   trait Reader {
@@ -98,7 +98,7 @@ protected object Response {
     def read(input: InputStream, finalResponseTag: Int, commands: Map[Int, Command])(timeout: Duration): Map[Int, Response] = {
       @tailrec
       def _read(responsesAcc: Map[Int, Response]): Map[Int, Response] = {
-        val packet = readPacket(input)(timeout)
+        val packet = readPacket(input, timeout)
 
         val responses = commands.get(packet.header.opaque).map {
           cmd => responsesAcc + ((packet.header.opaque, buildResponse(cmd, packet)))
@@ -124,7 +124,7 @@ protected object Response {
      * @return Response
      */
     def read(input: InputStream, command: Command)(timeout: Duration): Response =
-      buildResponse(command, readPacket(input)(timeout))
+      buildResponse(command, readPacket(input, timeout))
 
     val readPacket: PacketReader
 
@@ -169,7 +169,7 @@ protected object Response {
       }
     }
 
-    def readPacket(readBytes: ByteReader)(input: InputStream)(timeout: Duration): Packet = {
+    def readPacket(readBytes: ByteReader)(input: InputStream, timeout: Duration): Packet = {
       val startTime = System.currentTimeMillis()
       val headerBytes = readBytes(input, headerLen, timeout)
       val header = PacketHeader(headerBytes)
