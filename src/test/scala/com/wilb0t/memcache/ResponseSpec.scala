@@ -28,18 +28,6 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
     ))
   }
 
-  val setNoBodySuccessResponse = toByteArray(Array(
-    0x81,       // magic number
-    0x01,       // opcode
-    0x00, 0x00, // key length
-    0x00,       // extra length
-    0x00,       // data type
-    0x00, 0x00, // status
-    0x00, 0x00, 0x00, 0x00, // total body length
-    0x04, 0x03, 0x02, 0x01, // opaque (sent from client)
-    0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01  // cas
-  ))
-
   describe("Response") {
     describe("toInt") {
       it("must return correct Int for byte array") {
@@ -64,7 +52,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
       it("must return correct bytes from InputStream") {
         val input = byteStream(Array(0x1, 0x2, 0x3, 0x4, 0x5))
 
-        Response.Reader.readBytes(input, 5, timeout) must be (toByteArray(Array(0x1, 0x2, 0x3, 0x4, 0x5)))
+        Response.Reader.readBytes(input, 5, timeout) must be(toByteArray(Array(0x1, 0x2, 0x3, 0x4, 0x5)))
 
         input.close()
       }
@@ -75,10 +63,10 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
           0xff
         ))
 
-        Response.Reader.readBytes(input, 4, timeout) must be (toByteArray(Array(0x81, 0x01, 0x02, 0x03)))
+        Response.Reader.readBytes(input, 4, timeout) must be(toByteArray(Array(0x81, 0x01, 0x02, 0x03)))
 
-        input.available() must be (1)
-        input.read() must be (0xff)
+        input.available() must be(1)
+        input.read() must be(0xff)
 
         input.close()
       }
@@ -86,41 +74,41 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
       it("must throw TimeoutException if timeout expires before all bytes are read") {
         val input = byteStream(Array(0x81, 0x01, 0x00, 0x00))
 
-        a [TimeoutException] must be thrownBy
+        a[TimeoutException] must be thrownBy
           Response.Reader.readBytes(input, Response.headerLen, Duration(1, TimeUnit.MILLISECONDS))
 
         input.close()
       }
-      
-      describe("readPacket") {
-        it("should read packet for a server response with no body") {
-          val input = mock[InputStream]
-          val byteReader = mockFunction[InputStream,Int,Duration,Array[Byte]]
+    }
 
-          val opcode = 1.toByte
-          val keyLen = 0
-          val extraLen = 0.toByte
-          val status = 0.toByte
-          val bodyLen = 0
-          val opaque = 0x04030201
-          val cas = 0x0807060504030201L
-          byteReader.expects(input, 24, *).returns(headerBytes(opcode, keyLen, extraLen, status, bodyLen, opaque, cas))
-          byteReader.expects(input, 0, *).returns(Array())
+    describe("readPacket") {
+      it("should read packet for a server response with no body") {
+        val input = mock[InputStream]
+        val byteReader = mockFunction[InputStream, Int, Duration, Array[Byte]]
 
-          val packet = Response.Reader.readPacket(byteReader)(input, Duration(1, TimeUnit.MILLISECONDS))
+        val opcode = 1.toByte
+        val keyLen = 0
+        val extraLen = 0.toByte
+        val status = 0.toByte
+        val bodyLen = 0
+        val opaque = 0x04030201
+        val cas = 0x0807060504030201L
+        byteReader.expects(input, 24, *).returns(headerBytes(opcode, keyLen, extraLen, status, bodyLen, opaque, cas))
+        byteReader.expects(input, 0, *).returns(Array())
 
-          packet.header.bodyLen must be (bodyLen)
-          packet.header.magic   must be (0x81.toByte)
-          packet.header.status  must be (status)
-          packet.header.cas     must be (cas)
-          packet.header.extLen  must be (extraLen)
-          packet.header.opcode  must be (opcode)
-          packet.header.opaque  must be (opaque)
+        val packet = Response.Reader.readPacket(byteReader)(input, Duration(1, TimeUnit.MILLISECONDS))
 
-          packet.extras must be (None)
-          packet.key    must be (None)
-          packet.value  must be (None)
-        }
+        packet.header.bodyLen must be(bodyLen)
+        packet.header.magic must be(0x81.toByte)
+        packet.header.status must be(status)
+        packet.header.cas must be(cas)
+        packet.header.extLen must be(extraLen)
+        packet.header.opcode must be(opcode)
+        packet.header.opaque must be(opaque)
+
+        packet.extras must be(None)
+        packet.key must be(None)
+        packet.value must be(None)
       }
 
       it("should read packet for a server response with a body") {
@@ -140,89 +128,238 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         val packet = Response.Reader.readPacket(byteReader)(input, Duration(1, TimeUnit.MILLISECONDS))
 
         packet.header.bodyLen must be(bodyLen)
-        packet.header.magic   must be(0x81.toByte)
-        packet.header.status  must be(status)
-        packet.header.cas     must be(cas)
-        packet.header.extLen  must be(extraLen)
-        packet.header.opcode  must be(opcode)
-        packet.header.opaque  must be(opaque)
+        packet.header.magic must be(0x81.toByte)
+        packet.header.status must be(status)
+        packet.header.cas must be(cas)
+        packet.header.extLen must be(extraLen)
+        packet.header.opcode must be(opcode)
+        packet.header.opaque must be(opaque)
 
         packet.extras must be(None)
-        packet.key    must be(None)
-        packet.value  must matchPattern { case Some(Array(0x04, 0x03, 0x02, 0x01)) => }
+        packet.key must be(None)
+        packet.value must matchPattern { case Some(Array(0x04, 0x03, 0x02, 0x01)) => }
       }
     }
 
-    it("must return Success for a success server packet") {
-      val cmd = Command.Set("key", 0x0, 0x0, None, Array(0x0))
-      val input = byteStream(setNoBodySuccessResponse)
+    describe("buildResponse") {
+      it("should return Success for a success packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
 
-      val response = Response.Reader().read(input,cmd)(Duration(1, TimeUnit.MILLISECONDS))
-      response must matchPattern {
-        case Response.Success(Some("key"), 0x0807060504030201L, Some(Array(0x0))) => }
+        (cmd.keyBytes _).expects()
+          .returns(Some("key".getBytes(Command.keyEncoding)))
+          .atLeastOnce()
+        (cmd.value _).expects().returns(None)
 
-      input.close()
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+        (pkt.value _).expects().returns(None).atLeastOnce()
+
+        (hdr.status _).expects().returns(0x0)
+        (hdr.cas _).expects().returns(0x01)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must matchPattern{ case Response.Success(Some("key"), 0x1, None) => }
+      }
+
+      it("should return KeyNotFound for a key not found packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
+
+        (cmd.keyBytes _).expects()
+          .returns(Some("key".getBytes(Command.keyEncoding)))
+          .atLeastOnce()
+
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+
+        (hdr.status _).expects().returns(0x1)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must matchPattern{ case Response.KeyNotFound(Some("key")) => }
+      }
+
+      it("should return KeyExists for a key exists packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
+
+        (cmd.keyBytes _).expects()
+          .returns(Some("key".getBytes(Command.keyEncoding)))
+          .atLeastOnce()
+
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+
+        (hdr.status _).expects().returns(0x2)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must matchPattern{ case Response.KeyExists(Some("key")) => }
+      }
+
+      it("should return ValueTooLarge for a value too large packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
+
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+
+        (hdr.status _).expects().returns(0x3)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must be(Response.ValueTooLarge)
+      }
+
+      it("should return InvalidArguments for an invalid arguments packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
+
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+
+        (hdr.status _).expects().returns(0x4)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must be(Response.InvalidArguments)
+      }
+
+      it("should return ItemNotStored for an item not stored packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
+
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+
+        (hdr.status _).expects().returns(0x5)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must be(Response.ItemNotStored)
+      }
+
+      it("should return IncDevNonNumericValue for an inc dec non numeric value packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
+
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+
+        (hdr.status _).expects().returns(0x6)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must be(Response.IncDecNonNumericValue)
+      }
+
+      it("should return UnknownCommand for an unknown command packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
+
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+
+        (hdr.status _).expects().returns(0x81)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must be(Response.UnknownCommand)
+      }
+
+      it("should return OutOfMemory for an out of memory packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
+
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+
+        (hdr.status _).expects().returns(0x82)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must be(Response.OutOfMemory)
+      }
+
+      it("should return UnknownServerResponse for an unknown packet") {
+        val cmd = mock[InternalCommand]
+        val pkt = mock[Response.Packet]
+        val hdr = mock[Response.PacketHeader]
+
+        (pkt.header _).expects().returns(hdr).atLeastOnce()
+
+        (hdr.status _).expects().returns(0xff)
+
+        val resp = Response.Reader.buildResponse(cmd, pkt)
+
+        resp must be(Response.UnknownServerResponse)
+      }
     }
-  }
 
-  describe("PacketHeaderImpl") {
-    it("should unpack byte array into correct fields") {
-      val opcode = 1.toByte
-      val keyLen = 0xff00
-      val extraLen = 0xf0
-      val status = 0xfeed
-      val bodyLen = 0xfff0
-      val opaque = 0x04030201
-      val cas = 0x0807060504030201L
+    describe("PacketHeaderImpl") {
+      it("should unpack byte array into correct fields") {
+        val opcode = 1.toByte
+        val keyLen = 0xff00
+        val extraLen = 0xf0
+        val status = 0xfeed
+        val bodyLen = 0xfff0
+        val opaque = 0x04030201
+        val cas = 0x0807060504030201L
 
-      val header = Response.PacketHeaderImpl(
-        headerBytes(opcode, keyLen, extraLen.toByte, status, bodyLen, opaque, cas)
-      )
+        val header = Response.PacketHeaderImpl(
+          headerBytes(opcode, keyLen, extraLen.toByte, status, bodyLen, opaque, cas)
+        )
 
-      header.magic    must be(0x81.toByte)
-      header.opcode   must be(opcode)
-      header.keyLen   must be(keyLen)
-      header.extLen   must be(extraLen)
-      header.dataType must be(0x0)
-      header.status   must be(status)
-      header.bodyLen  must be(bodyLen)
-      header.opaque   must be(opaque)
-      header.cas      must be(cas)
-    }
-  }
-
-  describe("Packet") {
-    it("should unpack extras from body based on PacketHeader") {
-      val header = mock[Response.PacketHeader]
-
-      (header.extLen _).expects().returns(4).atLeastOnce()
-
-      val packet = Response.Packet(header, Array(0x01, 0x02, 0x03, 0x04))
-
-      packet.extras must matchPattern{ case Some(Array(0x01, 0x02, 0x03, 0x04)) => }
+        header.magic must be(0x81.toByte)
+        header.opcode must be(opcode)
+        header.keyLen must be(keyLen)
+        header.extLen must be(extraLen)
+        header.dataType must be(0x0)
+        header.status must be(status)
+        header.bodyLen must be(bodyLen)
+        header.opaque must be(opaque)
+        header.cas must be(cas)
+      }
     }
 
-    it("should unpack key from body based on PacketHeader") {
-      val header = mock[Response.PacketHeader]
+    describe("PacketImpl") {
+      it("should unpack extras from body based on PacketHeader") {
+        val header = mock[Response.PacketHeader]
 
-      (header.extLen _).expects().returns(4).atLeastOnce()
-      (header.keyLen _).expects().returns(2).atLeastOnce()
+        (header.extLen _).expects().returns(4).atLeastOnce()
+        (header.keyLen _).expects().returns(0).atLeastOnce()
+        (header.bodyLen _).expects().returns(4).atLeastOnce()
 
-      val packet = Response.Packet(header, Array(0x01, 0x02, 0x03, 0x04, 0x05, 0x06))
+        val packet = Response.PacketImpl(header, Array(0x01, 0x02, 0x03, 0x04))
 
-      packet.key must matchPattern{ case Some(Array(0x05, 0x06)) => }
-    }
+        packet.extras must matchPattern { case Some(Array(0x01, 0x02, 0x03, 0x04)) => }
+      }
 
-    it("should unpack value from body based on PacketHeader") {
-      val header = mock[Response.PacketHeader]
+      it("should unpack key from body based on PacketHeader") {
+        val header = mock[Response.PacketHeader]
 
-      (header.extLen _).expects().returns(4).atLeastOnce()
-      (header.keyLen _).expects().returns(2).atLeastOnce()
-      (header.bodyLen _).expects().returns(8).atLeastOnce()
+        (header.extLen _).expects().returns(4).atLeastOnce()
+        (header.keyLen _).expects().returns(2).atLeastOnce()
+        (header.bodyLen _).expects().returns(6).atLeastOnce()
 
-      val packet = Response.Packet(header, Array(0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08))
+        val packet = Response.PacketImpl(header, Array(0x01, 0x02, 0x03, 0x04, 0x05, 0x06))
 
-      packet.value must matchPattern{ case Some(Array(0x07, 0x08)) => }
+        packet.key must matchPattern { case Some(Array(0x05, 0x06)) => }
+      }
+
+      it("should unpack value from body based on PacketHeader") {
+        val header = mock[Response.PacketHeader]
+
+        (header.extLen _).expects().returns(4).atLeastOnce()
+        (header.keyLen _).expects().returns(2).atLeastOnce()
+        (header.bodyLen _).expects().returns(8).atLeastOnce()
+
+        val packet = Response.PacketImpl(header, Array(0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08))
+
+        packet.value must matchPattern { case Some(Array(0x07, 0x08)) => }
+      }
     }
   }
 }

@@ -57,7 +57,7 @@ protected object Response {
 
   protected[memcache]
   case class PacketHeaderImpl(bytes: Array[Byte]) extends PacketHeader {
-    protected[memcache] // needed for mocking/testing
+    // needed for mocking/testing
     def this() = this(Array.fill[Byte](Response.headerLen){0})
 
     val magic: Byte = bytes(0)
@@ -65,36 +65,44 @@ protected object Response {
     val keyLen: Int = ((bytes(2) << 8) & 0xff00) | (bytes(3) & 0x00ff)
     val extLen: Int = bytes(4) & 0xff
 
-    def dataType: Byte = bytes(5)
+    val dataType: Byte = bytes(5)
 
     val status: Int = ((bytes(6) << 8) & 0xff00) | (bytes(7) & 0x00ff)
     val bodyLen: Int = toInt(bytes, 8)
 
-    def opaque: Int = toInt(bytes, 12)
+    val opaque: Int = toInt(bytes, 12)
 
-    def cas: Long = toLong(bytes, 16)
+    val cas: Long = toLong(bytes, 16)
   }
 
   protected[memcache]
-  case class Packet(header: PacketHeader, body: Array[Byte]) {
-    def extras: Option[Array[Byte]] =
+  trait Packet {
+    def header: PacketHeader
+    def extras: Option[Array[Byte]]
+    def key: Option[Array[Byte]]
+    def value: Option[Array[Byte]]
+  }
+
+  protected[memcache]
+  case class PacketImpl(header: PacketHeader, body: Array[Byte]) extends Packet {
+    val extras: Option[Array[Byte]] =
       if (header.extLen > 0) Some(body.slice(0, header.extLen)) else None
 
-    def key: Option[Array[Byte]] =
+    val key: Option[Array[Byte]] =
       if (header.keyLen > 0) Some(body.slice(header.extLen, header.extLen + header.keyLen)) else None
 
-    def value: Option[Array[Byte]] =
+    val value: Option[Array[Byte]] =
       if (header.extLen + header.keyLen < header.bodyLen) Some(body.slice(header.extLen + header.keyLen, header.bodyLen)) else None
   }
 
   protected[memcache]
-  type ResponseBuilder = (Command, Packet) => Response
+  type ResponseBuilder = (InternalCommand, Packet) => Response
 
   protected[memcache]
   type ByteReader      = (InputStream, Int, Duration) => Array[Byte]
 
   protected[memcache]
-  type PacketReader    = (InputStream, Duration) => Packet
+  type PacketReader    = (InputStream, Duration) => PacketImpl
 
   protected[memcache]
   trait Reader {
@@ -163,7 +171,7 @@ protected object Response {
         val buildResponse = responseBuilder
       }
 
-    def buildResponse(cmd: Command, packet: Packet): Response = {
+    def buildResponse(cmd: InternalCommand, packet: Packet): Response = {
       val header = packet.header
       header.status match {
         case 0x00 =>
@@ -186,7 +194,7 @@ protected object Response {
       }
     }
 
-    def readPacket(readBytes: ByteReader)(input: InputStream, timeout: Duration): Packet = {
+    def readPacket(readBytes: ByteReader)(input: InputStream, timeout: Duration): PacketImpl = {
       val startTime = System.currentTimeMillis()
       val headerBytes = readBytes(input, headerLen, timeout)
       val header = PacketHeaderImpl(headerBytes)
@@ -194,7 +202,7 @@ protected object Response {
       val elapsed = Duration(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS)
       val bodyTimeout = (timeout - elapsed).max(Duration(0, TimeUnit.MILLISECONDS))
       val bodyBytes = readBytes(input, header.bodyLen, bodyTimeout)
-      Packet(header, bodyBytes)
+      PacketImpl(header, bodyBytes)
     }
 
     def readBytes(input: InputStream, numBytes: Int, timeout: Duration): Array[Byte] = {

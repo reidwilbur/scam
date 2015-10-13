@@ -3,13 +3,16 @@ package com.wilb0t.memcache
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
-sealed trait Command {
-  protected[memcache] def opcode:   Byte
-  protected[memcache] def opaque:   Int
-  protected[memcache] def cas:      Option[Long]
-  protected[memcache] def extras:   Option[Array[Byte]]
-  protected[memcache] def keyBytes: Option[Array[Byte]]
-  protected[memcache] def value:    Option[Array[Byte]]
+sealed trait Command extends InternalCommand { }
+
+protected[memcache]
+trait InternalCommand {
+  def opcode:   Byte
+  def opaque:   Int
+  def cas:      Option[Long]
+  def extras:   Option[Array[Byte]]
+  def keyBytes: Option[Array[Byte]]
+  def value:    Option[Array[Byte]]
 }
 
 object Command {
