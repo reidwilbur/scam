@@ -11,6 +11,6 @@ lazy val commonSettings = Seq(
 lazy val root = (project in file(".")).
   settings(commonSettings: _*).
   settings(
-    name := "scala-memcached"
+    name := "scam"
   )
 

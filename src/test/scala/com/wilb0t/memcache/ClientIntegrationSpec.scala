@@ -8,21 +8,21 @@ import java.net.InetAddress
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Awaitable, Await}
 
-class ClientIntegrationSpec extends FunSpec with Matchers {
+class ClientIntegrationSpec extends FunSpec with MustMatchers {
 
   implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
 
   implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
   // TODO(reid): these are actually integration tests since they require a live memcached server
-  // should update maven to spin one up and put this test in a separate goal
+  // should update sbt to spin up memcache as part of some int test task
 
   def blockForResult[T](f: Awaitable[T]): T = {
     Await.result(f, Duration(1, TimeUnit.SECONDS))
   }
 
   describe("A Client") {
-    it("should execute commands in order") {
+    it("must execute commands in order") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
@@ -30,59 +30,59 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
       val setResponse = blockForResult(
         client.execute(Command.Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3)))
       )
-      setResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x0,0x01,0x2,0x3))) => }
+      setResponse must matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x0,0x01,0x2,0x3))) => }
 
       val getResponse = blockForResult(
         client.execute(Command.Get("somekey"))
       )
-      getResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x0,0x1,0x2,0x3))) => }
+      getResponse must matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x0,0x1,0x2,0x3))) => }
 
       val addResponse = blockForResult(
         client.execute(Command.Add("somekey", 0, 3600, None, Array[Byte](0x4,0x5)))
       )
-      addResponse should matchPattern{ case Response.KeyExists(Some("somekey")) => }
+      addResponse must matchPattern{ case Response.KeyExists(Some("somekey")) => }
 
       val replaceResponse = blockForResult(
         client.execute(Command.Replace("somekey", 0, 3600, None, Array[Byte](0x7,0x8)))
       )
-      replaceResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
+      replaceResponse must matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
 
       val getReplacedResponse = blockForResult(
         client.execute(Command.Get("somekey"))
       )
-      getReplacedResponse should matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
+      getReplacedResponse must matchPattern { case Response.Success(Some("somekey"), _, Some(Array(0x7,0x8))) => }
 
       val deleteResponse = blockForResult(
         client.execute(Command.Delete("somekey"))
       )
-      deleteResponse should matchPattern { case Response.Success(Some("somekey"), _, None) => }
+      deleteResponse must matchPattern { case Response.Success(Some("somekey"), _, None) => }
 
       val getFailedResponse = blockForResult(
         client.execute(Command.Get("somekey"))
       )
-      getFailedResponse should matchPattern { case Response.KeyNotFound(Some("somekey")) => }
+      getFailedResponse must matchPattern { case Response.KeyNotFound(Some("somekey")) => }
 
       client.execute(Command.Delete("incKey"))
 
       val incInitResponse = blockForResult(
         client.execute(Command.Increment("incKey", 0x35L, 0x0, 3600))
       )
-      incInitResponse should matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0))) => }
+      incInitResponse must matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0))) => }
 
       val incResponse = blockForResult(
         client.execute(Command.Increment("incKey", 0x35L, 0x0, 3600))
       )
-      incResponse should matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x35))) => }
+      incResponse must matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x35))) => }
 
       val decResponse = blockForResult(
         client.execute(Command.Decrement("incKey", 0x01L, 0x0, 3600))
       )
-      decResponse should matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x34))) => }
+      decResponse must matchPattern { case Response.Success(Some("incKey"), _, Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x34))) => }
 
       client.close()
     }
 
-    it ("should return a Response for each Command of getM ") {
+    it ("must return a Response for each Command of getM ") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
@@ -105,7 +105,7 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
         ))
       )
 
-      getMResp should matchPattern {
+      getMResp must matchPattern {
         case List(
           Response.KeyNotFound(Some("somekey4")),
           Response.Success(Some("somekey2"), _, Some(Array(0x2))),
@@ -117,7 +117,7 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
       client.close()
     }
 
-    it ("should return a Response for each Command of setM") {
+    it ("must return a Response for each Command of setM") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
@@ -131,7 +131,7 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
         ))
       )
 
-      setMResp should matchPattern {
+      setMResp must matchPattern {
         case List(
           Response.Success(Some("somekey1"), _, Some(Array(0x01))),
           Response.Success(Some("somekey2"), _, Some(Array(0x02))),
@@ -143,7 +143,7 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
       client.close()
     }
 
-    it ("should return a Response for each Command of delM") {
+    it ("must return a Response for each Command of delM") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
@@ -161,7 +161,7 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
         ))
       )
 
-      delMResp should matchPattern {
+      delMResp must matchPattern {
         case List(
           Response.Success(Some("somekey2"), _, None),
           Response.Success(Some("somekey1"), _, None),
@@ -173,7 +173,7 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
       client.close()
     }
 
-    it("should return a Response for each Command of an incDecM") {
+    it("must return a Response for each Command of an incDecM") {
       val address = InetAddress.getByName("192.168.59.103")
 
       val client = Client(address, 11211).get
@@ -192,7 +192,7 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
         ))
       )
 
-      resp should matchPattern {
+      resp must matchPattern {
         case List(
           Response.Success(Some("counter1"), _, None),
           Response.Success(Some("counter1"), _, None),
@@ -205,7 +205,7 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
         client.execute(Command.Increment("counter1", 0x1, 0x00, 3600))
       )
 
-      incResp should matchPattern {
+      incResp must matchPattern {
         case Response.Success(Some("counter1"),_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1))) =>
       }
 
@@ -213,7 +213,7 @@ class ClientIntegrationSpec extends FunSpec with Matchers {
         client.execute(Command.Decrement("counter2", 0x1, 0x00, 3600))
       )
 
-      decResp should matchPattern {
+      decResp must matchPattern {
         case Response.Success(Some("counter2"),_,Some(Array(0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xf))) =>
       }
 

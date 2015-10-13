@@ -82,7 +82,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
     }
 
     describe("readPacket") {
-      it("should read packet for a server response with no body") {
+      it("must return a packet for a server response with no body") {
         val input = mock[InputStream]
         val byteReader = mockFunction[InputStream, Int, Duration, Array[Byte]]
 
@@ -111,7 +111,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         packet.value must be(None)
       }
 
-      it("should read packet for a server response with a body") {
+      it("must return a packet for a server response with a body") {
         val input = mock[InputStream]
         val byteReader = mockFunction[InputStream, Int, Duration, Array[Byte]]
 
@@ -142,7 +142,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
     }
 
     describe("buildResponse") {
-      it("should return Success for a success packet") {
+      it("must return Success for a success packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -163,7 +163,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         resp must matchPattern{ case Response.Success(Some("key"), 0x1, None) => }
       }
 
-      it("should return KeyNotFound for a key not found packet") {
+      it("must return KeyNotFound for a key not found packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -181,7 +181,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         resp must matchPattern{ case Response.KeyNotFound(Some("key")) => }
       }
 
-      it("should return KeyExists for a key exists packet") {
+      it("must return KeyExists for a key exists packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -199,7 +199,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         resp must matchPattern{ case Response.KeyExists(Some("key")) => }
       }
 
-      it("should return ValueTooLarge for a value too large packet") {
+      it("must return ValueTooLarge for a value too large packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -213,7 +213,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         resp must be(Response.ValueTooLarge)
       }
 
-      it("should return InvalidArguments for an invalid arguments packet") {
+      it("must return InvalidArguments for an invalid arguments packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -227,7 +227,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         resp must be(Response.InvalidArguments)
       }
 
-      it("should return ItemNotStored for an item not stored packet") {
+      it("must return ItemNotStored for an item not stored packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -241,7 +241,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         resp must be(Response.ItemNotStored)
       }
 
-      it("should return IncDevNonNumericValue for an inc dec non numeric value packet") {
+      it("must return IncDevNonNumericValue for an inc dec non numeric value packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -255,7 +255,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         resp must be(Response.IncDecNonNumericValue)
       }
 
-      it("should return UnknownCommand for an unknown command packet") {
+      it("must return UnknownCommand for an unknown command packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -269,7 +269,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         resp must be(Response.UnknownCommand)
       }
 
-      it("should return OutOfMemory for an out of memory packet") {
+      it("must return OutOfMemory for an out of memory packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -283,7 +283,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         resp must be(Response.OutOfMemory)
       }
 
-      it("should return UnknownServerResponse for an unknown packet") {
+      it("must return UnknownServerResponse for an unknown packet") {
         val cmd = mock[InternalCommand]
         val pkt = mock[Response.Packet]
         val hdr = mock[Response.PacketHeader]
@@ -299,7 +299,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
     }
 
     describe("PacketHeaderImpl") {
-      it("should unpack byte array into correct fields") {
+      it("must unpack byte array into correct fields") {
         val opcode = 1.toByte
         val keyLen = 0xff00
         val extraLen = 0xf0
@@ -325,7 +325,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
     }
 
     describe("PacketImpl") {
-      it("should unpack extras from body based on PacketHeader") {
+      it("must unpack extras from body based on PacketHeader") {
         val header = mock[Response.PacketHeader]
 
         (header.extLen _).expects().returns(4).atLeastOnce()
@@ -337,7 +337,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         packet.extras must matchPattern { case Some(Array(0x01, 0x02, 0x03, 0x04)) => }
       }
 
-      it("should unpack key from body based on PacketHeader") {
+      it("must unpack key from body based on PacketHeader") {
         val header = mock[Response.PacketHeader]
 
         (header.extLen _).expects().returns(4).atLeastOnce()
@@ -349,7 +349,7 @@ class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
         packet.key must matchPattern { case Some(Array(0x05, 0x06)) => }
       }
 
-      it("should unpack value from body based on PacketHeader") {
+      it("must unpack value from body based on PacketHeader") {
         val header = mock[Response.PacketHeader]
 
         (header.extLen _).expects().returns(4).atLeastOnce()
