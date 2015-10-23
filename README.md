@@ -12,7 +12,7 @@ Example usage below
 
 ```
 import scala.concurrent.ExecutionContext.Implicits.global
-import com.wilb0t.memcache.{Client, Command, Response}
+import com.wilb0t.scam.{Client, Command, Response}
 import scala.util.Try
 import scala.concurrent.{Future, Await}
 
