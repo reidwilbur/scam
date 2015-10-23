@@ -1,4 +1,4 @@
-package com.wilb0t.memcache
+package com.wilb0t.scam
 
 import java.io._
 import java.util.concurrent.{TimeoutException, TimeUnit}

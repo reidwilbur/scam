@@ -1,4 +1,4 @@
-package com.wilb0t.memcache
+package com.wilb0t.scam
 
 import java.net.{Socket, InetAddress}
 import java.util.concurrent.Executors

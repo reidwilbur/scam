@@ -1,11 +1,11 @@
-package com.wilb0t.memcache
+package com.wilb0t.scam
 
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
 sealed trait Command extends InternalCommand { }
 
-protected[memcache]
+protected[scam]
 trait InternalCommand {
   def opcode:   Byte
   def opaque:   Int
@@ -16,13 +16,13 @@ trait InternalCommand {
 }
 
 object Command {
-  protected[memcache]
+  protected[scam]
   val magic: Byte = 0x80.toByte
 
-  protected[memcache]
+  protected[scam]
   val headerLen: Int = 24
 
-  protected[memcache]
+  protected[scam]
   val keyEncoding = Charset.forName("UTF-8")
 
   trait Setter extends Command {
@@ -53,7 +53,7 @@ object Command {
     override val opcode = 0x01.toByte
   }
 
-  protected[memcache]
+  protected[scam]
   case class SetQ(override val key: String,
                   override val flags: Int,
                   override val exptime: Int,
@@ -73,7 +73,7 @@ object Command {
     override val opcode = 0x02.toByte
   }
 
-  protected[memcache]
+  protected[scam]
   case class AddQ(override val key: String,
                   override val flags: Int,
                   override val exptime: Int,
@@ -93,7 +93,7 @@ object Command {
     override val opcode = 0x03.toByte
   }
 
-  protected[memcache]
+  protected[scam]
   case class ReplaceQ(override val key: String,
                       override val flags: Int,
                       override val exptime: Int,
@@ -113,7 +113,7 @@ object Command {
     override val value  = None
   }
 
-  protected[memcache]
+  protected[scam]
   case class GetQ(key: String, override val opaque: Int) extends Command {
     override val opcode = 0x09.toByte
     override val cas    = None
@@ -131,7 +131,7 @@ object Command {
     override val value  = None
   }
 
-  protected[memcache]
+  protected[scam]
   case class DeleteQ(key: String, override val opaque: Int) extends Command {
     override val opcode = 0x14.toByte
     override val cas    = None
@@ -148,7 +148,7 @@ object Command {
     override val value  = None
   }
 
-  protected[memcache]
+  protected[scam]
   trait IncDec extends Command {
     override val opaque = 0x0
     override val cas    = None
@@ -187,7 +187,7 @@ object Command {
     override val opcode = 0x05.toByte
   }
 
-  protected[memcache]
+  protected[scam]
   case class IncrementQ(key: String, delta: Long,
                         initialVal: Long,
                         exptime: Int,
@@ -201,7 +201,7 @@ object Command {
     override val opcode = 0x06.toByte
   }
 
-  protected[memcache]
+  protected[scam]
   case class DecrementQ(key: String, delta: Long,
                         initialVal: Long,
                         exptime: Int,
@@ -262,7 +262,7 @@ object Command {
   class DefaultResponseException(msg: String = null, cause: Throwable = null)
     extends RuntimeException(msg, cause)
 
-  protected[memcache]
+  protected[scam]
   def quietCommand(cmd: Command, opaque: Int): Command =
     cmd match {
       case Get(k)             => GetQ(k, opaque)
@@ -275,7 +275,7 @@ object Command {
       case _ => throw new QuietCommandException(s"No quiet command for $cmd")
     }
 
-  protected[memcache]
+  protected[scam]
   def defaultResponse(cmd: Command): Response =
     cmd match {
       case GetQ(k,o)             => Response.KeyNotFound(Some(k))

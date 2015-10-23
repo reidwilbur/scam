@@ -1,4 +1,4 @@
-package com.wilb0t.memcache
+package com.wilb0t.scam
 
 import java.io.InputStream
 import java.util.concurrent.{TimeoutException, TimeUnit}
@@ -31,18 +31,18 @@ protected object Response {
 
   case object UnknownServerResponse extends Response
 
-  protected[memcache]
+  protected[scam]
   def toInt(bytes: Array[Byte], ofs: Int): Int =
     ((bytes(ofs) << 24) & 0xff000000) | ((bytes(ofs + 1) << 16) & 0xff0000) | ((bytes(ofs + 2) << 8) & 0xff00) | (bytes(ofs + 3) & 0xff)
 
-  protected[memcache]
+  protected[scam]
   def toLong(bytes: Array[Byte], ofs: Int): Long =
     ((toInt(bytes, ofs).toLong << 32) & 0xffffffff00000000L) | (toInt(bytes, ofs + 4) & 0x0ffffffffL)
 
-  protected[memcache]
+  protected[scam]
   val headerLen = 24
 
-  protected[memcache]
+  protected[scam]
   trait PacketHeader {
     def magic: Byte
     def opcode: Byte
@@ -55,7 +55,7 @@ protected object Response {
     def cas: Long
   }
 
-  protected[memcache]
+  protected[scam]
   case class PacketHeaderImpl(bytes: Array[Byte]) extends PacketHeader {
     // needed for mocking/testing
     def this() = this(Array.fill[Byte](Response.headerLen){0})
@@ -75,7 +75,7 @@ protected object Response {
     val cas: Long = toLong(bytes, 16)
   }
 
-  protected[memcache]
+  protected[scam]
   trait Packet {
     def header: PacketHeader
     def extras: Option[Array[Byte]]
@@ -83,7 +83,7 @@ protected object Response {
     def value: Option[Array[Byte]]
   }
 
-  protected[memcache]
+  protected[scam]
   case class PacketImpl(header: PacketHeader, body: Array[Byte]) extends Packet {
     val extras: Option[Array[Byte]] =
       if (header.extLen > 0) Some(body.slice(0, header.extLen)) else None
@@ -95,16 +95,16 @@ protected object Response {
       if (header.extLen + header.keyLen < header.bodyLen) Some(body.slice(header.extLen + header.keyLen, header.bodyLen)) else None
   }
 
-  protected[memcache]
+  protected[scam]
   type ResponseBuilder = (InternalCommand, Packet) => Response
 
-  protected[memcache]
+  protected[scam]
   type ByteReader      = (InputStream, Int, Duration) => Array[Byte]
 
-  protected[memcache]
+  protected[scam]
   type PacketReader    = (InputStream, Duration) => PacketImpl
 
-  protected[memcache]
+  protected[scam]
   trait Reader {
     /**
      * Returns map of Int to Response corresponding to the input Commands.  Note that the server may not return
@@ -156,7 +156,7 @@ protected object Response {
     val buildResponse: ResponseBuilder
   }
 
-  protected[memcache]
+  protected[scam]
   object Reader {
 
     def apply(): Reader =
