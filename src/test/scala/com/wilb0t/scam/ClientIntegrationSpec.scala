@@ -25,7 +25,7 @@ class ClientIntegrationSpec extends FunSpec with MustMatchers {
     it("must execute commands in order") {
       val address = InetAddress.getByName("192.168.59.103")
 
-      val client = Client(address, 11211).get
+      val client = Client(address, 11211)
 
       val setResponse = blockForResult(
         client.execute(Command.Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3)))
@@ -85,7 +85,7 @@ class ClientIntegrationSpec extends FunSpec with MustMatchers {
     it ("must return a Response for each Command of getM ") {
       val address = InetAddress.getByName("192.168.59.103")
 
-      val client = Client(address, 11211).get
+      val client = Client(address, 11211)
 
       client.execute(Command.Delete("somekey1"))
       client.execute(Command.Delete("somekey2"))
@@ -120,7 +120,7 @@ class ClientIntegrationSpec extends FunSpec with MustMatchers {
     it ("must return a Response for each Command of setM") {
       val address = InetAddress.getByName("192.168.59.103")
 
-      val client = Client(address, 11211).get
+      val client = Client(address, 11211)
 
       val setMResp = blockForResult(
         client.setM(List(
@@ -146,7 +146,7 @@ class ClientIntegrationSpec extends FunSpec with MustMatchers {
     it ("must return a Response for each Command of delM") {
       val address = InetAddress.getByName("192.168.59.103")
 
-      val client = Client(address, 11211).get
+      val client = Client(address, 11211)
 
       Set("somekey1", 0x0, 3600, None, Array(0x1))
       Set("somekey2", 0x0, 3600, None, Array(0x2))
@@ -176,7 +176,7 @@ class ClientIntegrationSpec extends FunSpec with MustMatchers {
     it("must return a Response for each Command of an incDecM") {
       val address = InetAddress.getByName("192.168.59.103")
 
-      val client = Client(address, 11211).get
+      val client = Client(address, 11211)
 
       client.delM(List(
         Command.Delete("counter1"),

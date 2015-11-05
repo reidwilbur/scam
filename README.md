@@ -18,7 +18,7 @@ import scala.concurrent.{Future, Await}
 
 val address = InetAddress.getByName("192.168.59.103")
 
-val client: Try[Client] = Client(address, 11211).get
+val client: Client = Client(address, 11211)
 val response: Future[Response] = 
     client.execute(
         Command.Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3))
