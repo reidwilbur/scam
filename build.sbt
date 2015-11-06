@@ -1,7 +1,7 @@
 
 lazy val commonSettings = Seq(
   organization := "com.wilb0t",
-  version := "0.0.1",
+  version := "0.1.0",
   scalaVersion := "2.11.4"
 )
 
@@ -20,3 +20,5 @@ libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.2" 
 parallelExecution in IntegrationTest := false
 
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
+
+exportJars := true
