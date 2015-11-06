@@ -26,7 +26,7 @@ val response: Future[Response] =
 
 println(Await.result(responseF, Duration(1, TimeUnit.SECONDS)))
 
-val responseM : Future[Response] = client.getM(List(
+val responseM : Future[List[Response]] = client.getM(List(
     Command.Get("somekey4"),
     Command.Get("somekey2"),
     Command.Get("somekey3"),
