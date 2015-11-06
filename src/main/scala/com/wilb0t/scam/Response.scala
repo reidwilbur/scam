@@ -120,7 +120,7 @@ protected object Response {
      * @param timeout maximum time to wait for all input bytes to arrive and be processed
      * @return Map[Int,Response]
      */
-    def read(input: InputStream, finalResponseTag: Int, commands: Map[Int, Command])(timeout: Duration): Map[Int, Response] = {
+    def read(input: InputStream, finalResponseTag: Int, commands: Map[Int, InternalCommand])(timeout: Duration): Map[Int, Response] = {
       @tailrec
       def _read(responsesAcc: Map[Int, Response]): Map[Int, Response] = {
         val packet = readPacket(input, timeout)
@@ -148,7 +148,7 @@ protected object Response {
      * @param timeout maximum time to wait for all input bytes to arrive and be processed
      * @return Response
      */
-    def read(input: InputStream, command: Command)(timeout: Duration): Response =
+    def read(input: InputStream, command: InternalCommand)(timeout: Duration): Response =
       buildResponse(command, readPacket(input, timeout))
 
     val readPacket: PacketReader

@@ -217,7 +217,7 @@ object Command {
    * @param cmd Command to serialize
    * @return Array[Byte]
    */
-  implicit def toBytes(cmd: Command): Array[Byte] = {
+  implicit def toBytes(cmd: InternalCommand): Array[Byte] = {
     val extLen = cmd.extras.map{_.length}.getOrElse(0)
     val keyLen = cmd.keyBytes.map{_.length}.getOrElse(0)
     val valLen = cmd.value.map{_.length}.getOrElse(0)
@@ -263,7 +263,7 @@ object Command {
     extends RuntimeException(msg, cause)
 
   protected[scam]
-  def quietCommand(cmd: Command, opaque: Int): Command =
+  def quietCommand(cmd: InternalCommand, opaque: Int): Command =
     cmd match {
       case Get(k)             => GetQ(k, opaque)
       case Set(k,f,e,c,v)     => SetQ(k, f, e, opaque, c, v)
@@ -276,7 +276,7 @@ object Command {
     }
 
   protected[scam]
-  def defaultResponse(cmd: Command): Response =
+  def defaultResponse(cmd: InternalCommand): Response =
     cmd match {
       case GetQ(k,o)             => Response.KeyNotFound(Some(k))
       case SetQ(k,f,e,o,c,v)     => Response.Success(Some(k), 0, Some(v))

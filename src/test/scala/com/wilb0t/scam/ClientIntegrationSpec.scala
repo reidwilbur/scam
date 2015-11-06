@@ -8,18 +8,12 @@ import java.net.InetAddress
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Awaitable, Await}
 
-class ClientIntegrationSpec extends FunSpec with MustMatchers {
-
-  implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
+class ClientIntegrationSpec extends FunSpec with MustMatchers with ScamTest {
 
   implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
   // TODO(reid): these are actually integration tests since they require a live memcached server
   // should update sbt to spin up memcache as part of some int test task
-
-  def blockForResult[T](f: Awaitable[T]): T = {
-    Await.result(f, Duration(1, TimeUnit.SECONDS))
-  }
 
   describe("A Client") {
     it("must execute commands in order") {

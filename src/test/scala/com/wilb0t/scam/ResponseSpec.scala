@@ -8,9 +8,7 @@ import org.scalatest._
 
 import scala.concurrent.duration.Duration
 
-class ResponseSpec extends FunSpec with MustMatchers with MockFactory {
-
-  implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
+class ResponseSpec extends FunSpec with MustMatchers with MockFactory with ScamTest {
 
   def headerBytes(opcode: Byte, keyLen: Int, extraLen: Byte, status: Int, bodyLen: Int, opaque: Int, cas: Long)
     : Array[Byte] = {
