@@ -24,7 +24,7 @@ val response: Future[Response] =
         Command.Set("somekey", 0, 3600, None, Array[Byte](0x0, 0x1, 0x2, 0x3))
     )(Duration(250, TimeUnit.MILLISECONDS))
 
-println(Await.result(responseF, Duration(1, TimeUnit.SECONDS)))
+println(Await.result(response, Duration(1, TimeUnit.SECONDS)))
 
 val responseM : Future[List[Response]] = client.getM(List(
     Command.Get("somekey4"),

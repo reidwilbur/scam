@@ -1,19 +1,24 @@
-package com.wilb0t.scam
-
 import java.util.concurrent.TimeUnit
 
+import com.wilb0t.scam.{Command, Client, Response}
 import org.scalatest._
 import java.net.InetAddress
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Awaitable, Await}
 
-class ClientIntegrationSpec extends FunSpec with MustMatchers with ScamTest {
+class ClientIntegrationSpec extends FunSpec with MustMatchers {
+
+  implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
+
+  def blockForResult[T](f: Awaitable[T]): T = {
+    Await.result(f, Duration(1, TimeUnit.SECONDS))
+  }
 
   implicit val timeout = Duration(100, TimeUnit.MILLISECONDS)
 
-  // TODO(reid): these are actually integration tests since they require a live memcached server
-  // should update sbt to spin up memcache as part of some int test task
+  // TODO(reid): integration tests require a memcached server
+  // should update sbt to spin up memcache as part of int test task
 
   describe("A Client") {
     it("must execute commands in order") {

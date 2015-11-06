@@ -8,7 +8,7 @@ import scala.concurrent.duration.Duration
 
 sealed trait Response
 
-protected object Response {
+object Response {
 
   case class Success(key: Option[String], cas: Long, value: Option[Array[Byte]])
     extends Response
