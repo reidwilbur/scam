@@ -161,7 +161,7 @@ object Response {
 
     def apply(): Reader =
       new Reader {
-         val readPacket = Reader.readPacket(readBytes _) _
+         val readPacket = Reader.readPacket(readBytes) _
          val buildResponse = Reader.buildResponse _
       }
 

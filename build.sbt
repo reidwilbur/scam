@@ -18,3 +18,5 @@ libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.4" % "it,test"
 libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % "it,test"
 
 parallelExecution in IntegrationTest := false
+
+scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")

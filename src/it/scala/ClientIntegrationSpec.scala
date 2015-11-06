@@ -9,6 +9,7 @@ import scala.concurrent.{Awaitable, Await}
 
 class ClientIntegrationSpec extends FunSpec with MustMatchers {
 
+  import scala.language.implicitConversions
   implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
 
   def blockForResult[T](f: Awaitable[T]): T = {

@@ -210,11 +210,12 @@ object Command {
     override val opcode = 0x16.toByte
   }
 
+  import scala.language.implicitConversions
   /**
    * Serializes Command to an Array[Bytes] suitable to be sent over a socket
    * to a memcached server
    *
-   * @param cmd Command to serialize
+   * @param cmd InternalCommand to serialize
    * @return Array[Byte]
    */
   implicit def toBytes(cmd: InternalCommand): Array[Byte] = {

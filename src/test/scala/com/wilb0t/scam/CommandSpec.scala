@@ -2,9 +2,7 @@ package com.wilb0t.scam
 
 import org.scalatest.{Matchers, FunSpec}
 
-class CommandSpec extends FunSpec with Matchers {
-
-  implicit def toByteArray(bytes: Array[Int]): Array[Byte] = bytes.map{_.toByte}
+class CommandSpec extends FunSpec with Matchers with ScamTest {
 
   describe("A Serialized Command") {
     it("must have the correct opcode byte for Get command") {

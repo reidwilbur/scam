@@ -50,13 +50,12 @@ class ClientSpec extends FunSpec with MustMatchers with MockFactory with ScamTes
       expClientCmds.values.foreach{ (c) =>
         (outStream.write(_: Array[Byte]))
           .expects(where[Array[Byte]]{ bytes => bytes.sameElements(toBytes(c)) })
-          .returns()
       }
       //should write a noop to trigger any responses for commands and mark the end
       //of the pipeline
       (outStream.write(_: Array[Byte]))
         .expects(where[Array[Byte]]{ bytes => bytes.sameElements(toBytes(Command.Noop(3))) })
-      (outStream.flush _).expects().returns()
+      (outStream.flush _).expects()
 
       (reader.read(_: InputStream, _: Int, _: Map[Int, InternalCommand])(_: Duration))
         .expects(inStream, 3, expClientCmds, Duration(100, TimeUnit.MILLISECONDS))
@@ -82,8 +81,7 @@ class ClientSpec extends FunSpec with MustMatchers with MockFactory with ScamTes
 
       (outStream.write(_: Array[Byte]))
         .expects(where[Array[Byte]]{ bytes => bytes.sameElements(toBytes(cmd)) })
-        .returns()
-      (outStream.flush _).expects().returns()
+      (outStream.flush _).expects()
 
       (reader.read(_: InputStream, _: InternalCommand)(_: Duration))
         .expects(inStream, cmd, Duration(100, TimeUnit.MILLISECONDS))
